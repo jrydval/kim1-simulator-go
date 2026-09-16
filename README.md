@@ -19,9 +19,12 @@ Implemented and tested (`go test ./...`):
 - `internal/kim1` — the full KIM-1 memory map and address decode wiring
   the CPU to system RAM and both RIOT chips, plus keypad/display
   multiplexing logic (modeling the external 74145 decoder).
+- `internal/webui` + `cmd/kim1` — a Go web server exposing the running
+  KIM-1's display and keypad over WebSocket, meant to be opened via VS
+  Code's built-in Simple Browser panel.
 
-Not yet implemented: the web UI (`cmd/kim1`), VS Code integration, and
-the TTY/cassette interface.
+Not yet implemented: the TTY/cassette interface, a disassembler/debugger,
+and state snapshot save/restore.
 
 See [docs/kim1-memory-map.md](docs/kim1-memory-map.md) for the verified
 address map and remaining open questions (exact segment-bit and
@@ -33,6 +36,19 @@ keypad-layout assignments).
 go build ./...
 go test ./...
 ```
+
+## Running
+
+You need your own KIM-1 ROM dumps (see below). Then:
+
+```sh
+go run ./cmd/kim1 -rom-app=path/to/6530-003.bin -rom-kbd=path/to/6530-002.bin
+```
+
+This starts a web server (default `http://localhost:6502`). Open that URL
+in a browser, or in VS Code via the **Simple Browser: Show** command —
+there's also a "Run KIM-1" task in `.vscode/tasks.json` that prompts for
+the two ROM paths and starts the server for you.
 
 ## ROM images
 

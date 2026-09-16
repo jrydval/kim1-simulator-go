@@ -1,0 +1,144 @@
+// Package webui serves a browser UI for a running kim1.System: a virtual
+// hex keypad and 7-segment display kept live over a WebSocket, meant to be
+// opened via VS Code's built-in Simple Browser panel (no custom extension
+// needed).
+package webui
+
+import (
+	"context"
+	"embed"
+	"io/fs"
+	"net/http"
+	"sync"
+	"time"
+
+	"6502/internal/kim1"
+)
+
+//go:embed static
+var embeddedStatic embed.FS
+
+// Server drives a kim1.System (stepping its CPU on a background goroutine)
+// and exposes it to the browser over HTTP + WebSocket.
+type Server struct {
+	sys *kim1.System
+
+	// mu guards all access to sys, since it's mutated by the CPU-running
+	// goroutine and by incoming WebSocket messages (key presses, reset).
+	mu sync.Mutex
+
+	clientsMu sync.Mutex
+	clients   map[*client]struct{}
+
+	// TargetHz throttles the emulated CPU to approximate the real KIM-1's
+	// ~1MHz clock; 0 means run unthrottled.
+	TargetHz int
+}
+
+// NewServer returns a Server driving sys, throttled to approximately the
+// real KIM-1's 1MHz clock by default.
+func NewServer(sys *kim1.System) *Server {
+	return &Server{
+		sys:      sys,
+		clients:  make(map[*client]struct{}),
+		TargetHz: 1_000_000,
+	}
+}
+
+// Handler returns the HTTP handler serving the embedded static UI and the
+// WebSocket endpoint.
+func (s *Server) Handler() http.Handler {
+	staticFS, err := fs.Sub(embeddedStatic, "static")
+	if err != nil {
+		panic(err) // embed.FS is compiled in; this can't fail at runtime
+	}
+	mux := http.NewServeMux()
+	mux.Handle("/", http.FileServer(http.FS(staticFS)))
+	mux.HandleFunc("/ws", s.handleWS)
+	return mux
+}
+
+// RunCPU steps the emulated CPU until ctx is done, throttled to TargetHz
+// (in ~10ms slices) if set.
+func (s *Server) RunCPU(ctx context.Context) {
+	if s.TargetHz <= 0 {
+		s.runUnthrottled(ctx)
+		return
+	}
+	const slice = 10 * time.Millisecond
+	budgetPerSlice := int(float64(s.TargetHz) * slice.Seconds())
+
+	ticker := time.NewTicker(slice)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			s.mu.Lock()
+			spent := 0
+			for spent < budgetPerSlice {
+				spent += s.sys.Step()
+			}
+			s.mu.Unlock()
+		}
+	}
+}
+
+func (s *Server) runUnthrottled(ctx context.Context) {
+	const batch = 100_000
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+			s.mu.Lock()
+			for i := 0; i < batch; i++ {
+				s.sys.Step()
+			}
+			s.mu.Unlock()
+		}
+	}
+}
+
+// BroadcastLoop pushes the current system state to all connected
+// WebSocket clients at a fixed, UI-friendly rate, independent of how fast
+// the emulated CPU itself is running.
+func (s *Server) BroadcastLoop(ctx context.Context) {
+	const rate = time.Second / 30
+	ticker := time.NewTicker(rate)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			s.broadcastState()
+		}
+	}
+}
+
+func (s *Server) broadcastState() {
+	s.mu.Lock()
+	msg := stateMsg{
+		Type:   "state",
+		A:      s.sys.CPU.A,
+		X:      s.sys.CPU.X,
+		Y:      s.sys.CPU.Y,
+		SP:     s.sys.CPU.SP,
+		PC:     s.sys.CPU.PC,
+		P:      s.sys.CPU.P,
+		Cycles: s.sys.CPU.Cycles,
+		Digits: s.sys.Display.Digits,
+	}
+	s.mu.Unlock()
+
+	s.clientsMu.Lock()
+	defer s.clientsMu.Unlock()
+	for c := range s.clients {
+		select {
+		case c.send <- msg:
+		default: // slow client: drop this frame rather than block the broadcaster
+		}
+	}
+}

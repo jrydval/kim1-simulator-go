@@ -1,0 +1,30 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Run KIM-1",
+      "type": "shell",
+      "command": "go run ./cmd/kim1 -rom-app=${input:romApp} -rom-kbd=${input:romKbd}",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      },
+      "detail": "Starts the KIM-1 web UI server, then open http://localhost:6502 via the 'Simple Browser: Show' command."
+    }
+  ],
+  "inputs": [
+    {
+      "id": "romApp",
+      "type": "promptString",
+      "description": "Path to the 6530-003 (application RIOT) ROM image",
+      "default": "testdata/6530-003.bin"
+    },
+    {
+      "id": "romKbd",
+      "type": "promptString",
+      "description": "Path to the 6530-002 (keypad/display RIOT) ROM image",
+      "default": "testdata/6530-002.bin"
+    }
+  ]
+}

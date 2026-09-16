@@ -1,0 +1,121 @@
+:root {
+  color-scheme: dark;
+  --bg: #1b1b1b;
+  --panel: #262626;
+  --led-off: #3a1a1a;
+  --led-on: #ff4433;
+  --text: #ddd;
+  --key: #3a3a3a;
+  --key-active: #555;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: 16px;
+  background: var(--bg);
+  color: var(--text);
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+h1 {
+  font-size: 1rem;
+  letter-spacing: 0.2em;
+  color: #888;
+  margin: 0 0 12px;
+}
+
+main {
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+#display {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  background: var(--panel);
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 16px;
+}
+
+/* Seven-segment digit. Bit->segment mapping (bit0=a .. bit6=g) is a
+   best-effort placeholder pending schematic verification — see
+   docs/kim1-memory-map.md. */
+.digit {
+  position: relative;
+  width: 36px;
+  height: 60px;
+}
+
+.digit .seg {
+  position: absolute;
+  background: var(--led-off);
+  border-radius: 2px;
+  transition: background 60ms linear;
+}
+
+.digit .seg.on { background: var(--led-on); box-shadow: 0 0 6px var(--led-on); }
+
+.digit .seg-a { top: 0;    left: 4px;  width: 28px; height: 6px; }
+.digit .seg-g { top: 27px; left: 4px;  width: 28px; height: 6px; }
+.digit .seg-d { bottom: 0; left: 4px;  width: 28px; height: 6px; }
+.digit .seg-f { top: 3px;    left: 0;  width: 6px; height: 27px; }
+.digit .seg-b { top: 3px;    right: 0; width: 6px; height: 27px; }
+.digit .seg-e { bottom: 3px; left: 0;  width: 6px; height: 27px; }
+.digit .seg-c { bottom: 3px; right: 0; width: 6px; height: 27px; }
+
+#controls {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  margin-bottom: 16px;
+}
+
+#keypad {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+  flex: 1;
+}
+
+button.key, button.ctrl {
+  background: var(--key);
+  color: var(--text);
+  border: 1px solid #000;
+  border-radius: 4px;
+  padding: 10px 0;
+  font: inherit;
+  font-size: 0.95rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+button.key:active, button.key.pressed, button.ctrl:active {
+  background: var(--key-active);
+}
+
+#sidebuttons {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 60px;
+}
+
+button.ctrl { background: #4a2a2a; }
+
+#debug {
+  background: var(--panel);
+  border-radius: 8px;
+  padding: 12px 16px;
+  font-size: 0.85rem;
+}
+
+#debug table { border-collapse: collapse; width: 100%; }
+#debug th { text-align: left; color: #888; font-weight: normal; padding: 2px 8px 2px 0; }
+#debug td { padding: 2px 8px 2px 0; }
+
+#flags { margin-top: 6px; color: #888; letter-spacing: 0.15em; }
+#connstate { margin: 8px 0 0; color: #666; }

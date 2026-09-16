@@ -50,8 +50,8 @@ func New(b bus.Bus) *CPU {
 	return &CPU{Bus: b}
 }
 
-func (c *CPU) read(addr uint16) uint8      { return c.Bus.Read(addr) }
-func (c *CPU) write(addr uint16, v uint8)  { c.Bus.Write(addr, v) }
+func (c *CPU) read(addr uint16) uint8     { return c.Bus.Read(addr) }
+func (c *CPU) write(addr uint16, v uint8) { c.Bus.Write(addr, v) }
 func (c *CPU) read16(addr uint16) uint16 {
 	lo := uint16(c.read(addr))
 	hi := uint16(c.read(addr + 1))

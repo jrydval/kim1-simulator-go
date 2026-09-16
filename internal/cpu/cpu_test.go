@@ -56,7 +56,7 @@ func TestLDAImmediateFlags(t *testing.T) {
 func TestLDAZeroPageXWraps(t *testing.T) {
 	c, ram := newTestCPU()
 	c.X = 0xFF
-	ram.Write(0x007F, 0x42) // 0x80 + 0xFF wraps to 0x7F
+	ram.Write(0x007F, 0x42)                           // 0x80 + 0xFF wraps to 0x7F
 	cycles := run(c, ram, 0x0200, []byte{0xB5, 0x80}) // LDA $80,X
 	if c.A != 0x42 {
 		t.Fatalf("A = %02X, want 0x42", c.A)
@@ -139,9 +139,9 @@ func TestZeroPageIndirectPointerWrapsWithinPage(t *testing.T) {
 
 func TestJMPIndirectPageWrapBug(t *testing.T) {
 	c, ram := newTestCPU()
-	ram.Write(0x02FF, 0x00) // low byte of target
-	ram.Write(0x0200, 0x80) // hardware bug: high byte fetched from $0200, not $0300
-	ram.Write(0x0300, 0xFF) // decoy, should NOT be used
+	ram.Write(0x02FF, 0x00)                       // low byte of target
+	ram.Write(0x0200, 0x80)                       // hardware bug: high byte fetched from $0200, not $0300
+	ram.Write(0x0300, 0xFF)                       // decoy, should NOT be used
 	run(c, ram, 0x1000, []byte{0x6C, 0xFF, 0x02}) // JMP ($02FF)
 	if c.PC != 0x8000 {
 		t.Fatalf("PC = $%04X, want $8000 (page-wrap bug)", c.PC)
@@ -197,7 +197,7 @@ func TestADCDecimalMode(t *testing.T) {
 func TestSBCBinary(t *testing.T) {
 	c, ram := newTestCPU()
 	c.A = 0x50
-	c.setFlag(FlagC, true) // no borrow
+	c.setFlag(FlagC, true)                  // no borrow
 	run(c, ram, 0x0200, []byte{0xE9, 0x30}) // SBC #$30 -> 0x20
 	if c.A != 0x20 {
 		t.Fatalf("A = %02X, want 0x20", c.A)
@@ -287,7 +287,7 @@ func TestStackPushPull(t *testing.T) {
 func TestJSRRTS(t *testing.T) {
 	c, ram := newTestCPU()
 	c.SP = 0xFF
-	ram.Load(0x0300, []byte{0x60}) // RTS at subroutine
+	ram.Load(0x0300, []byte{0x60})                // RTS at subroutine
 	run(c, ram, 0x0200, []byte{0x20, 0x00, 0x03}) // JSR $0300
 	if c.PC != 0x0300 {
 		t.Fatalf("PC after JSR = $%04X, want $0300", c.PC)
@@ -302,7 +302,7 @@ func TestBRKandRTI(t *testing.T) {
 	c, ram := newTestCPU()
 	c.SP = 0xFF
 	ram.Write(0xFFFE, 0x00)
-	ram.Write(0xFFFF, 0x90) // IRQ/BRK vector -> $9000
+	ram.Write(0xFFFF, 0x90)                 // IRQ/BRK vector -> $9000
 	run(c, ram, 0x0200, []byte{0x00, 0xEA}) // BRK (padding byte 0xEA skipped)
 	if c.PC != 0x9000 {
 		t.Fatalf("PC after BRK = $%04X, want $9000", c.PC)

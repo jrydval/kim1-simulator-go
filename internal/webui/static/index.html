@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>KIM-1 Simulator</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+  <h1>KIM-1</h1>
+
+  <section id="display" aria-label="7-segment display"></section>
+
+  <section id="controls">
+    <div id="keypad" aria-label="hex keypad"></div>
+    <div id="sidebuttons">
+      <button id="btn-rs" class="ctrl" title="Reset (direct to CPU RESET, not part of the keypad matrix)">RS</button>
+      <button id="btn-st" class="ctrl" title="Single-step (direct to CPU NMI, not part of the keypad matrix)">ST</button>
+    </div>
+  </section>
+
+  <section id="debug">
+    <table>
+      <tr><th>A</th><th>X</th><th>Y</th><th>SP</th><th>PC</th><th>P</th><th>Cycles</th></tr>
+      <tr>
+        <td id="reg-a">00</td>
+        <td id="reg-x">00</td>
+        <td id="reg-y">00</td>
+        <td id="reg-sp">00</td>
+        <td id="reg-pc">0000</td>
+        <td id="reg-p">00</td>
+        <td id="reg-cycles">0</td>
+      </tr>
+    </table>
+    <div id="flags"></div>
+    <p id="connstate">connecting…</p>
+  </section>
+</main>
+<script src="app.js"></script>
+</body>
+</html>

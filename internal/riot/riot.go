@@ -62,9 +62,9 @@ func (r *RIOT) LoadROM(data []byte) error {
 	return nil
 }
 
-func (r *RIOT) ReadRAM(offset uint8) uint8      { return r.RAM[offset&(RAMSize-1)] }
-func (r *RIOT) WriteRAM(offset uint8, v uint8)  { r.RAM[offset&(RAMSize-1)] = v }
-func (r *RIOT) ReadROM(offset uint16) uint8     { return r.ROM[offset&(ROMSize-1)] }
+func (r *RIOT) ReadRAM(offset uint8) uint8     { return r.RAM[offset&(RAMSize-1)] }
+func (r *RIOT) WriteRAM(offset uint8, v uint8) { r.RAM[offset&(RAMSize-1)] = v }
+func (r *RIOT) ReadROM(offset uint16) uint8    { return r.ROM[offset&(ROMSize-1)] }
 
 // TickTimer advances this chip's timer and asserts IRQ-worthiness via the
 // return value (true if the timer just underflowed with interrupts
