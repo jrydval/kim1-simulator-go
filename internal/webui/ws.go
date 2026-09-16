@@ -22,6 +22,7 @@ type stateMsg struct {
 	Halted bool     `json:"halted"`
 	Error  string   `json:"error,omitempty"`
 	SST    bool     `json:"sst"`
+	Instr  string   `json:"instr"`
 }
 
 // clientMsg is sent by the browser: a keypad press/release, a control

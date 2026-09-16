@@ -126,6 +126,7 @@ button.key.switch.on {
 #debug td { padding: 2px 8px 2px 0; }
 
 #flags { margin-top: 6px; color: #888; letter-spacing: 0.15em; }
+#instr { margin: 10px 0 0; color: var(--text); font-size: 0.95rem; }
 #connstate { margin: 8px 0 0; color: #666; }
 
 #haltbanner {
