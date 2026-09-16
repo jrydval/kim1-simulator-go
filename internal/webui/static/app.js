@@ -63,6 +63,26 @@ function setDigit(index, bits) {
 let socket = null;
 let sstBtn = null;
 
+const ttySwitchBtn = document.getElementById("tty-switch");
+const ttyOutEl = document.getElementById("tty-out");
+const ttyForm = document.getElementById("tty-form");
+const ttyInEl = document.getElementById("tty-in");
+
+ttySwitchBtn.addEventListener("click", () => {
+  const on = !ttySwitchBtn.classList.contains("on");
+  ttySwitchBtn.classList.toggle("on", on);
+  sendMsg({ type: "ttyselect", down: on });
+});
+
+ttyForm.addEventListener("submit", (e) => {
+  e.preventDefault();
+  // A real teletype's RETURN key sends just CR ($0D); the monitor's own
+  // GETCH/OUTCH echo supplies the LF back, which is why decoded output
+  // shows up as "\r\n".
+  sendMsg({ type: "ttysend", text: ttyInEl.value + "\r" });
+  ttyInEl.value = "";
+});
+
 function sendMsg(msg) {
   if (socket && socket.readyState === WebSocket.OPEN) {
     socket.send(JSON.stringify(msg));
@@ -194,6 +214,9 @@ function connect() {
     updatePort("kbdPB", msg.kbdPB);
 
     if (sstBtn) sstBtn.classList.toggle("on", msg.sst);
+    ttySwitchBtn.classList.toggle("on", msg.ttySelect);
+    ttyOutEl.textContent = msg.ttyOut;
+    ttyOutEl.scrollTop = ttyOutEl.scrollHeight;
 
     const flagNames = ["C", "Z", "I", "D", "B", "-", "V", "N"];
     const flags = flagNames

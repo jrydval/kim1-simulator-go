@@ -91,10 +91,13 @@ func TestKeypadRowScanReadsPressedKey(t *testing.T) {
 	s.Write(kbdPADDR, 0x00)  // Port A all input (column read mode)
 	s.Write(kbdPBData, 1<<1) // 74145 code 1 -> row 1
 
+	// Bit 7 reads back 1 (idle/mark) alongside the column bits: it's
+	// always the TTY RX line (see TTY's doc comment), regardless of
+	// what the keypad row-select is doing.
 	got := s.Read(kbdPAData)
-	want := uint8(0x7F &^ (1 << 3))
+	want := uint8(0xFF &^ (1 << 3))
 	if got != want {
-		t.Fatalf("Read(PA) = %02X, want %02X (column 3 pulled low)", got, want)
+		t.Fatalf("Read(PA) = %02X, want %02X (column 3 pulled low, bit 7 = idle TTY RX)", got, want)
 	}
 }
 
@@ -105,8 +108,8 @@ func TestKeypadRowScanOtherRowUnaffected(t *testing.T) {
 	s.Write(kbdPADDR, 0x00)
 	s.Write(kbdPBData, 0<<1) // select row 0, where nothing is pressed
 
-	if got := s.Read(kbdPAData); got != 0x7F {
-		t.Fatalf("Read(PA) on unpressed row = %02X, want 0x7F", got)
+	if got := s.Read(kbdPAData); got != 0xFF {
+		t.Fatalf("Read(PA) on unpressed row = %02X, want 0xFF", got)
 	}
 }
 
@@ -115,12 +118,12 @@ func TestKeypadReleasedKeyStopsReading(t *testing.T) {
 	s.Keypad.SetPressed(0, 0, true)
 	s.Write(kbdPADDR, 0x00)
 	s.Write(kbdPBData, 0)
-	if got := s.Read(kbdPAData); got == 0x7F {
+	if got := s.Read(kbdPAData); got == 0xFF {
 		t.Fatalf("expected column 0 pulled low while pressed")
 	}
 
 	s.Keypad.SetPressed(0, 0, false)
-	if got := s.Read(kbdPAData); got != 0x7F {
-		t.Fatalf("Read(PA) after release = %02X, want 0x7F", got)
+	if got := s.Read(kbdPAData); got != 0xFF {
+		t.Fatalf("Read(PA) after release = %02X, want 0xFF", got)
 	}
 }

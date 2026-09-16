@@ -43,15 +43,37 @@ type Server struct {
 	// which looks exactly like the UI freezing. Cleared by RS (reset).
 	halted     bool
 	haltReason string
+
+	// ttyBuf accumulates bytes decoded from the CPU's TTY output (see
+	// internal/kim1/tty.go), capped to maxTTYBuf so a long-running
+	// session doesn't grow this unboundedly. Appended to from
+	// sys.TTY.OnByte, which fires synchronously from within stepBatch
+	// while mu is already held.
+	ttyBuf []byte
 }
+
+// maxTTYBuf caps how much decoded TTY output is retained/broadcast; only
+// the tail is kept once exceeded.
+const maxTTYBuf = 4096
 
 // NewServer returns a Server driving sys, throttled to approximately the
 // real KIM-1's 1MHz clock by default.
 func NewServer(sys *kim1.System) *Server {
-	return &Server{
+	s := &Server{
 		sys:      sys,
 		clients:  make(map[*client]struct{}),
 		TargetHz: 1_000_000,
+	}
+	sys.TTY.OnByte = s.onTTYByte
+	return s
+}
+
+// onTTYByte is TTY.OnByte: called synchronously from within stepBatch
+// (which already holds mu), so it must not lock.
+func (s *Server) onTTYByte(b byte) {
+	s.ttyBuf = append(s.ttyBuf, b)
+	if len(s.ttyBuf) > maxTTYBuf {
+		s.ttyBuf = s.ttyBuf[len(s.ttyBuf)-maxTTYBuf:]
 	}
 }
 
@@ -172,23 +194,25 @@ func (s *Server) broadcastState() {
 	s.mu.Lock()
 	instr := disassembleAtDisplayAddress(s.sys, s.sys.Display.Digits)
 	msg := stateMsg{
-		Type:   "state",
-		A:      s.sys.CPU.A,
-		X:      s.sys.CPU.X,
-		Y:      s.sys.CPU.Y,
-		SP:     s.sys.CPU.SP,
-		PC:     s.sys.CPU.PC,
-		P:      s.sys.CPU.P,
-		Cycles: s.sys.CPU.Cycles,
-		Digits: s.sys.Display.Digits,
-		Halted: s.halted,
-		Error:  s.haltReason,
-		SST:    s.sys.SST,
-		Instr:  instr,
-		AppPA:  portState{Value: s.sys.App.PortA.Read(), DDR: s.sys.App.PortA.ReadDDR()},
-		AppPB:  portState{Value: s.sys.App.PortB.Read(), DDR: s.sys.App.PortB.ReadDDR()},
-		KbdPA:  portState{Value: s.sys.Kbd.PortA.Read(), DDR: s.sys.Kbd.PortA.ReadDDR()},
-		KbdPB:  portState{Value: s.sys.Kbd.PortB.Read(), DDR: s.sys.Kbd.PortB.ReadDDR()},
+		Type:      "state",
+		A:         s.sys.CPU.A,
+		X:         s.sys.CPU.X,
+		Y:         s.sys.CPU.Y,
+		SP:        s.sys.CPU.SP,
+		PC:        s.sys.CPU.PC,
+		P:         s.sys.CPU.P,
+		Cycles:    s.sys.CPU.Cycles,
+		Digits:    s.sys.Display.Digits,
+		Halted:    s.halted,
+		Error:     s.haltReason,
+		SST:       s.sys.SST,
+		Instr:     instr,
+		AppPA:     portState{Value: s.sys.App.PortA.Read(), DDR: s.sys.App.PortA.ReadDDR()},
+		AppPB:     portState{Value: s.sys.App.PortB.Read(), DDR: s.sys.App.PortB.ReadDDR()},
+		KbdPA:     portState{Value: s.sys.Kbd.PortA.Read(), DDR: s.sys.Kbd.PortA.ReadDDR()},
+		KbdPB:     portState{Value: s.sys.Kbd.PortB.Read(), DDR: s.sys.Kbd.PortB.ReadDDR()},
+		TTYSelect: s.sys.TTYSelect,
+		TTYOut:    string(s.ttyBuf),
 	}
 	s.mu.Unlock()
 

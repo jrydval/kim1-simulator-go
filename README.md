@@ -27,10 +27,11 @@ Implemented and tested (`go test ./...`):
   the instruction at whatever address is shown on the display — i.e.
   what you're actually examining via `AD`/`DA`/`+`, not the CPU's own PC
   (almost always deep in idle monitor code) — shown next to the register
-  debug panel, and an I/O port panel showing both RIOTs' Port A/B pins as
-  LEDs (lit = high, solid outline = output pin, dashed = input pin).
+  debug panel, an I/O port panel showing both RIOTs' Port A/B pins as
+  LEDs (lit = high, solid outline = output pin, dashed = input pin), and
+  a TTY terminal panel (see below).
 
-Not yet implemented: the TTY/cassette interface, breakpoints, and state
+Not yet implemented: the cassette interface, breakpoints, and state
 snapshot save/restore.
 
 See [docs/kim1-memory-map.md](docs/kim1-memory-map.md) for the verified
@@ -99,6 +100,25 @@ already stops after exactly one instruction, so there's never a useful
 moment to also press `ST`; it's a tool for manually breaking into a
 program that's running *without* `SST` (e.g. a long/infinite loop),
 not a companion to it.
+
+## TTY terminal
+
+The `TTY/KB` switch in the web UI mirrors the real KIM-1's physical
+TTY/keyboard mode jumper. With it on, the monitor boots into TTY command
+mode instead of keypad/display mode; with it off (the default), the
+keypad/display work as normal and the terminal panel stays unused.
+
+The serial link is emulated at the pin level, not by trapping ROM
+routines: `internal/kim1/tty.go` reconstructs whatever the CPU writes to
+the TTY output pin (Port B bit 0) into bytes, and drives the TTY input
+pin (Port A bit 7) with whatever you type, framed as a real 1-start /
+8-data / 1-stop bit software UART — confirmed against the real ROM's
+GETCH ($1E5A) and OUTCH ($1EA0) routines. The monitor has no baud-rate
+setting; at reset it measures the width of the first start bit it
+receives and uses that as its bit time from then on, which is why a real
+teletype's bootstrap procedure is to send RUBOUT first. This emulator
+does that step automatically — flip `TTY/KB` on, then press `RS`, and
+the boot banner should appear in the terminal panel.
 
 ## ROM images
 

@@ -180,6 +180,56 @@ button.key.switch.on {
   box-shadow: 0 0 5px var(--led-on);
 }
 
+#tty {
+  background: var(--panel);
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-top: 16px;
+  font-size: 0.85rem;
+}
+
+#tty h2 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  color: #888;
+  font-weight: normal;
+  margin: 0 0 10px;
+}
+
+#tty-switch {
+  padding: 3px 8px;
+  aspect-ratio: auto;
+  font-size: 0.7rem;
+}
+
+#tty-out {
+  margin: 0;
+  height: 140px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: #111;
+  border-radius: 4px;
+  padding: 8px;
+  color: #8f8;
+  font-size: 0.85rem;
+}
+
+#tty-in {
+  width: 100%;
+  margin-top: 8px;
+  background: #111;
+  border: 1px solid #333;
+  border-radius: 4px;
+  padding: 6px 8px;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.85rem;
+}
+
 #haltbanner {
   background: #4a1f1f;
   color: #ff9a8a;

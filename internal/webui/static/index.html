@@ -39,6 +39,17 @@
     <h2>6530 RIOT I/O Ports</h2>
     <div id="ioports-grid"></div>
   </section>
+
+  <section id="tty" aria-label="TTY terminal">
+    <h2>
+      TTY
+      <button id="tty-switch" class="key switch" title="TTY/keyboard mode switch: on = boot into TTY command mode instead of keypad/display mode (Port A bit 0). Turn on, then press RS -- the terminal auto-sends RUBOUT on reset to trigger the monitor's baud calibration.">TTY/KB</button>
+    </h2>
+    <pre id="tty-out"></pre>
+    <form id="tty-form">
+      <input id="tty-in" type="text" autocomplete="off" placeholder="type and press Enter to send a line (as CR)">
+    </form>
+  </section>
 </main>
 <script src="app.js"></script>
 </body>

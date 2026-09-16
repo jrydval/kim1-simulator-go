@@ -79,6 +79,37 @@ monitor entered on the display):
   but still legal opcode, which is why the CPU didn't loop as expected.
   GO itself was never at fault.)
 
+## TTY interface
+
+**Verified by disassembling the real Kbd ROM dump's GETCH ($1E5A) and
+OUTCH ($1EA0) routines** (`cmd/_scratchtty`-style scratch program, since
+cleaned up) and cross-checking byte-for-byte against a reconstructed
+source listing (brainwagon/kim-1):
+
+- RX (into the CPU): Kbd RIOT **Port A bit 7**, idle-high (mark = 1,
+  start bit = 0). Sampled directly by GETCH regardless of what the
+  74145 keypad/display multiplexer is doing.
+- TX (out of the CPU): Kbd RIOT **Port B bit 0**, same idle-high
+  framing. OUTCH performs exactly one write per bit period (start, 8
+  data bits LSB-first, stop), which is enough on its own to decode
+  byte framing without needing to track timing at all — see
+  `internal/kim1/tty.go`'s `ObserveTxWrite`.
+- Port A bit 0 doubles as the physical TTY/keyboard mode switch
+  (`System.TTYSelect`) whenever the multiplexer isn't actively
+  selecting a keyboard row — read once at reset (`$1C31`) and again on
+  every main-loop iteration (`$1C4F`) to decide whether to boot into
+  TTY command mode or keypad/display mode.
+- No baud-rate register exists: at reset, the monitor measures the
+  width (in CPU cycles) of the first start bit it sees and reuses that
+  as its per-bit delay for both directions from then on. This is why a
+  real teletype's bootstrap procedure is to send RUBOUT ($7F) first —
+  its data bits are all 1s (idle level), so the low pulse the monitor
+  measures is exactly one bit wide. `System.Reset` automates this: with
+  `TTYSelect` on, it auto-queues a RUBOUT send.
+- End-to-end confirmed against the real ROM: after the above bootstrap,
+  the decoded TTY output was exactly `"\r\n...KIM\r\n...0000 00 "` — the
+  monitor's real boot banner and address/data prompt.
+
 ## Sources
 
 - KIM-1 User's Manual V1.0 memory map (kim-1.com/docs/usrman.htm)

@@ -21,6 +21,15 @@ type System struct {
 
 	Keypad  *Keypad
 	Display *Display
+	TTY     *TTY
+
+	// TTYSelect mirrors the physical TTY/keyboard mode jumper the
+	// monitor reads as Port A bit 0 outside of active keypad row-scans:
+	// with it on, the monitor skips keypad/display mode entirely at
+	// reset and boots into TTY command mode instead (see the real ROM's
+	// $1C2F/$1C4F "BIT SAD" checks). Must be set before RESET, since
+	// it's only sampled there and in the main command-mode dispatch.
+	TTYSelect bool
 
 	// SST mirrors the KIM-1's physical Single-Step slide switch. When on,
 	// each instruction fetched from outside ROM (i.e. the user's own
@@ -38,6 +47,12 @@ type System struct {
 	DebugIO func(chip string, offset uint16, v uint8)
 }
 
+// defaultTTYCyclesPerBit is the bit period (in emulated 1MHz CPU cycles)
+// TTY presents to the monitor ROM's auto-baud calibration, chosen for a
+// usable web-terminal typing speed (300 baud) rather than a real
+// teletype's historical ~110 baud.
+const defaultTTYCyclesPerBit = 1_000_000 / 300
+
 // New returns a System with empty RAM/ROM. Load ROM images with
 // LoadAppROM/LoadKbdROM before calling Reset.
 func New() *System {
@@ -46,6 +61,7 @@ func New() *System {
 		Kbd:     riot.New(),
 		Keypad:  NewKeypad(),
 		Display: NewDisplay(),
+		TTY:     NewTTY(defaultTTYCyclesPerBit),
 	}
 	s.Kbd.PortA.InputFunc = s.keypadColumnInput
 	s.CPU = cpu.New(s)
@@ -80,9 +96,17 @@ func (s *System) LoadKbdROM(path string) error {
 }
 
 // Reset performs the CPU reset sequence, fetching PC from the aliased
-// hardware reset vector ($FFFC/$FFFD -> $1FFC/$1FFD in Kbd ROM).
+// hardware reset vector ($FFFC/$FFFD -> $1FFC/$1FFD in Kbd ROM). If
+// TTYSelect is on, it also queues the RUBOUT ($7F) byte a real teletype
+// sends to trigger the monitor's post-reset auto-baud calibration (see
+// TTY's doc comment) -- without it, GETCH/OUTCH would use whatever
+// leftover (or zero) delay was in RAM and run far too fast to decode.
 func (s *System) Reset() {
 	s.CPU.Reset()
+	s.TTY.Reset()
+	if s.TTYSelect {
+		s.TTY.Send(0x7F)
+	}
 }
 
 // Step executes one CPU instruction and ticks both RIOT timers by the
@@ -147,6 +171,9 @@ func (s *System) Write(addr uint16, v uint8) {
 	case addr >= kbdIOStart && addr <= kbdIOEnd:
 		writeIO(s.Kbd, addr-kbdIOStart, v)
 		s.refreshDisplay()
+		if decodeIOOffset(addr-kbdIOStart) == regPortB {
+			s.TTY.ObserveTxWrite(s.Kbd.PortB.OutputData() & 1)
+		}
 		if s.DebugIO != nil {
 			s.DebugIO("kbd", addr-kbdIOStart, v)
 		}

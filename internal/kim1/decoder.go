@@ -33,13 +33,24 @@ func (s *System) refreshDisplay() {
 	s.Display.Update(digit, segments)
 }
 
-// keypadColumnInput supplies Port A's input-mode bits: if the 74145 is
-// currently selecting a keyboard row (lines 0-2), it returns that row's
-// active-low column state; otherwise all columns read idle.
+// keypadColumnInput supplies Port A's input-mode bits. Bit 7 is always
+// the TTY's RX line (idle-high), sampled by GETCH regardless of what the
+// keypad/display multiplexer is doing at that instant -- confirmed by
+// disassembling the real ROM, where GETCH's "BIT SAD" doesn't check the
+// 74145 select line at all. Bits 0-6 come from whichever keyboard row
+// (lines 0-2) the 74145 currently selects; outside of an active row
+// select, bit 0 instead reflects TTYSelect (0 = TTY mode, matching the
+// monitor's own reset-time and main-loop "BIT SAD" checks of that bit),
+// with bits 1-6 idle-high.
 func (s *System) keypadColumnInput() uint8 {
+	rx := s.TTY.RXBit(s.CPU.Cycles) << 7
+
 	line := s.kbdMuxLine()
 	if line < 0 || line > 2 {
-		return 0x7F
+		if s.TTYSelect {
+			return rx | 0x7E
+		}
+		return rx | 0x7F
 	}
-	return s.Keypad.ColumnBits(line)
+	return rx | s.Keypad.ColumnBits(line)
 }
