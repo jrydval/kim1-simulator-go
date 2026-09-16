@@ -83,13 +83,17 @@ watch the display (or single-step slowly) rather than expecting to catch
 live CPU register values mid-step — the monitor's own display-scan loop
 reuses those same registers between your steps.
 
-`ST` (whether or not `SST` is on) only makes sense once a program is
-actually running — i.e. after `GO`. Pressing `ST` while still sitting in
-the monitor's own idle loop (no program ever started) interrupts the
-monitor itself rather than your program, with no meaningful "where it
-stopped" state to save, and produces garbage. With `SST` on, you don't
-need `ST` at all — pressing `GO` already executes exactly one instruction
-and returns each time.
+`ST` only makes sense while a program is actually running between when
+you press `GO` and when it would otherwise return to the monitor on its
+own. Pressing `ST` while sitting in the monitor's idle loop — including
+right after an `SST` step, since by the time you see the display update
+control is already back in the monitor — interrupts the monitor itself
+rather than your program, with no meaningful "where it stopped" state to
+save, and shows a garbage ROM-ish address. With `SST` on, every `GO`
+already stops after exactly one instruction, so there's never a useful
+moment to also press `ST`; it's a tool for manually breaking into a
+program that's running *without* `SST` (e.g. a long/infinite loop),
+not a companion to it.
 
 ## ROM images
 
