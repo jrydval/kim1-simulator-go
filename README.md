@@ -83,6 +83,14 @@ watch the display (or single-step slowly) rather than expecting to catch
 live CPU register values mid-step — the monitor's own display-scan loop
 reuses those same registers between your steps.
 
+`ST` (whether or not `SST` is on) only makes sense once a program is
+actually running — i.e. after `GO`. Pressing `ST` while still sitting in
+the monitor's own idle loop (no program ever started) interrupts the
+monitor itself rather than your program, with no meaningful "where it
+stopped" state to save, and produces garbage. With `SST` on, you don't
+need `ST` at all — pressing `GO` already executes exactly one instruction
+and returns each time.
+
 ## ROM images
 
 This repository does **not** include KIM-1 ROM dumps — they are
