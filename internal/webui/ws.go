@@ -28,7 +28,7 @@ type stateMsg struct {
 	KbdPA     portState `json:"kbdPA"`
 	KbdPB     portState `json:"kbdPB"`
 	TTYSelect bool      `json:"ttySelect"`
-	TTYOut    string    `json:"ttyOut"`
+	TTYLog    []ttyRun  `json:"ttyLog"`
 }
 
 // portState is one RIOT I/O port's current electrical state: Value is the
@@ -120,6 +120,7 @@ func (s *Server) handleClientMsg(msg clientMsg) {
 		s.sys.TTYSelect = msg.Down
 	case "ttysend":
 		s.sys.TTY.Send([]byte(msg.Text)...)
+		s.appendTTY(msg.Text, true)
 	}
 }
 

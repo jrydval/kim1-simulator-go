@@ -74,6 +74,23 @@ ttySwitchBtn.addEventListener("click", () => {
   sendMsg({ type: "ttyselect", down: on });
 });
 
+// Real teletypes echo what you type locally (the keyboard is
+// mechanically linked to the printer, independent of what's actually
+// received), so without that there'd be no visual trace of your own
+// input at all. The server tags each transcript run as sent (typed by
+// you) or received (decoded from the CPU's TTY output); render them in
+// different colors so the two are distinguishable at a glance.
+function renderTTY(runs) {
+  ttyOutEl.textContent = "";
+  for (const run of runs) {
+    const span = document.createElement("span");
+    span.className = run.sent ? "tty-sent" : "tty-recv";
+    span.textContent = run.text;
+    ttyOutEl.appendChild(span);
+  }
+  ttyOutEl.scrollTop = ttyOutEl.scrollHeight;
+}
+
 ttyForm.addEventListener("submit", (e) => {
   e.preventDefault();
   // A real teletype's RETURN key sends just CR ($0D); the monitor's own
@@ -215,8 +232,7 @@ function connect() {
 
     if (sstBtn) sstBtn.classList.toggle("on", msg.sst);
     ttySwitchBtn.classList.toggle("on", msg.ttySelect);
-    ttyOutEl.textContent = msg.ttyOut;
-    ttyOutEl.scrollTop = ttyOutEl.scrollHeight;
+    renderTTY(msg.ttyLog || []);
 
     const flagNames = ["C", "Z", "I", "D", "B", "-", "V", "N"];
     const flags = flagNames

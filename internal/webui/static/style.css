@@ -214,9 +214,13 @@ button.key.switch.on {
   background: #111;
   border-radius: 4px;
   padding: 8px;
-  color: #8f8;
   font-size: 0.85rem;
 }
+
+/* Received (decoded from the CPU's OUTCH) vs. sent (typed by you, with
+   no real hardware local echo to rely on -- see app.js's renderTTY). */
+.tty-recv { color: #8f8; }
+.tty-sent { color: #ffcc66; font-weight: 600; }
 
 #tty-in {
   width: 100%;

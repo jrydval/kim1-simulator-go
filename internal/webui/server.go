@@ -44,16 +44,28 @@ type Server struct {
 	halted     bool
 	haltReason string
 
-	// ttyBuf accumulates bytes decoded from the CPU's TTY output (see
-	// internal/kim1/tty.go), capped to maxTTYBuf so a long-running
-	// session doesn't grow this unboundedly. Appended to from
-	// sys.TTY.OnByte, which fires synchronously from within stepBatch
-	// while mu is already held.
-	ttyBuf []byte
+	// ttyLog is the TTY transcript as alternating runs of typed (Sent)
+	// and decoded-from-the-CPU (!Sent) text, capped by total text length
+	// to maxTTYBuf. There's no hardware local echo to rely on here (a
+	// real teletype's keyboard is mechanically linked to its own
+	// printer, independent of what's actually received), so this is
+	// the only place "what I typed" becomes visible at all. Appended to
+	// from onTTYByte (fires synchronously from within stepBatch, mu
+	// already held) and from handleClientMsg's "ttysend" case (mu also
+	// already held) — both under the same lock, so run ordering always
+	// matches actual send/receive order.
+	ttyLog []ttyRun
 }
 
-// maxTTYBuf caps how much decoded TTY output is retained/broadcast; only
-// the tail is kept once exceeded.
+// ttyRun is one contiguous stretch of the TTY transcript, either typed
+// by the user (Sent) or decoded from the CPU's TTY output.
+type ttyRun struct {
+	Text string `json:"text"`
+	Sent bool   `json:"sent"`
+}
+
+// maxTTYBuf caps how much TTY transcript text is retained/broadcast;
+// only the tail is kept once exceeded.
 const maxTTYBuf = 4096
 
 // NewServer returns a Server driving sys, throttled to approximately the
@@ -71,9 +83,37 @@ func NewServer(sys *kim1.System) *Server {
 // onTTYByte is TTY.OnByte: called synchronously from within stepBatch
 // (which already holds mu), so it must not lock.
 func (s *Server) onTTYByte(b byte) {
-	s.ttyBuf = append(s.ttyBuf, b)
-	if len(s.ttyBuf) > maxTTYBuf {
-		s.ttyBuf = s.ttyBuf[len(s.ttyBuf)-maxTTYBuf:]
+	s.appendTTY(string(rune(b)), false)
+}
+
+// appendTTY extends the TTY transcript with text of the given kind
+// (sent by the user, or decoded from the CPU), coalescing into the
+// previous run when it's the same kind, then trims to maxTTYBuf. Callers
+// must already hold mu.
+func (s *Server) appendTTY(text string, sent bool) {
+	if text == "" {
+		return
+	}
+	if n := len(s.ttyLog); n > 0 && s.ttyLog[n-1].Sent == sent {
+		s.ttyLog[n-1].Text += text
+	} else {
+		s.ttyLog = append(s.ttyLog, ttyRun{Text: text, Sent: sent})
+	}
+
+	total := 0
+	for _, r := range s.ttyLog {
+		total += len(r.Text)
+	}
+	for total > maxTTYBuf && len(s.ttyLog) > 0 {
+		excess := total - maxTTYBuf
+		first := &s.ttyLog[0]
+		if len(first.Text) <= excess {
+			total -= len(first.Text)
+			s.ttyLog = s.ttyLog[1:]
+		} else {
+			first.Text = first.Text[excess:]
+			total -= excess
+		}
 	}
 }
 
@@ -212,7 +252,10 @@ func (s *Server) broadcastState() {
 		KbdPA:     portState{Value: s.sys.Kbd.PortA.Read(), DDR: s.sys.Kbd.PortA.ReadDDR()},
 		KbdPB:     portState{Value: s.sys.Kbd.PortB.Read(), DDR: s.sys.Kbd.PortB.ReadDDR()},
 		TTYSelect: s.sys.TTYSelect,
-		TTYOut:    string(s.ttyBuf),
+		// Copied rather than aliased: s.ttyLog's backing array can be
+		// mutated by a later appendTTY call while this message is still
+		// queued for (or being marshaled by) a slow client.
+		TTYLog: append([]ttyRun(nil), s.ttyLog...),
 	}
 	s.mu.Unlock()
 
