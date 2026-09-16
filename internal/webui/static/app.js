@@ -40,7 +40,9 @@ const keypadEl = document.getElementById("keypad");
 const digitEls = [];
 for (let i = 0; i < 6; i++) {
   const d = document.createElement("div");
-  d.className = "digit";
+  // Digits 0-3 are the address field, 4-5 are data -- a real KIM-1
+  // board has a visible gap between the two groups on its display.
+  d.className = i === 4 ? "digit digit-group-gap" : "digit";
   const segs = {};
   for (const s of SEGMENTS) {
     const el = document.createElement("div");

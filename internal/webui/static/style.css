@@ -46,6 +46,12 @@ main {
 /* Seven-segment digit. Bit->segment mapping (bit0=a .. bit6=g) is a
    best-effort placeholder pending schematic verification — see
    docs/kim1-memory-map.md. */
+/* Extra gap between the 4-digit address field (0-3) and the 2-digit
+   data field (4-5), on top of the normal inter-digit gap -- matching
+   the visible grouping on a real KIM-1 board. ~1/4 of a horizontal
+   segment's width (28px). */
+.digit.digit-group-gap { margin-left: 7px; }
+
 .digit {
   position: relative;
   width: 36px;
