@@ -10,19 +10,32 @@ import (
 
 // stateMsg is broadcast to every connected client at a fixed UI rate.
 type stateMsg struct {
-	Type   string   `json:"type"` // "state"
-	A      uint8    `json:"a"`
-	X      uint8    `json:"x"`
-	Y      uint8    `json:"y"`
-	SP     uint8    `json:"sp"`
-	PC     uint16   `json:"pc"`
-	P      uint8    `json:"p"`
-	Cycles uint64   `json:"cycles"`
-	Digits [6]uint8 `json:"digits"`
-	Halted bool     `json:"halted"`
-	Error  string   `json:"error,omitempty"`
-	SST    bool     `json:"sst"`
-	Instr  string   `json:"instr"`
+	Type   string    `json:"type"` // "state"
+	A      uint8     `json:"a"`
+	X      uint8     `json:"x"`
+	Y      uint8     `json:"y"`
+	SP     uint8     `json:"sp"`
+	PC     uint16    `json:"pc"`
+	P      uint8     `json:"p"`
+	Cycles uint64    `json:"cycles"`
+	Digits [6]uint8  `json:"digits"`
+	Halted bool      `json:"halted"`
+	Error  string    `json:"error,omitempty"`
+	SST    bool      `json:"sst"`
+	Instr  string    `json:"instr"`
+	AppPA  portState `json:"appPA"`
+	AppPB  portState `json:"appPB"`
+	KbdPA  portState `json:"kbdPA"`
+	KbdPB  portState `json:"kbdPB"`
+}
+
+// portState is one RIOT I/O port's current electrical state: Value is the
+// actual pin level (output bits as driven, input bits as last sampled),
+// same as what a logic probe would read; DDR marks which bits are outputs
+// (1) vs. inputs (0).
+type portState struct {
+	Value uint8 `json:"value"`
+	DDR   uint8 `json:"ddr"`
 }
 
 // clientMsg is sent by the browser: a keypad press/release, a control

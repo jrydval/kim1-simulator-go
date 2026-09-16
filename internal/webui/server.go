@@ -185,6 +185,10 @@ func (s *Server) broadcastState() {
 		Error:  s.haltReason,
 		SST:    s.sys.SST,
 		Instr:  instr,
+		AppPA:  portState{Value: s.sys.App.PortA.Read(), DDR: s.sys.App.PortA.ReadDDR()},
+		AppPB:  portState{Value: s.sys.App.PortB.Read(), DDR: s.sys.App.PortB.ReadDDR()},
+		KbdPA:  portState{Value: s.sys.Kbd.PortA.Read(), DDR: s.sys.Kbd.PortA.ReadDDR()},
+		KbdPB:  portState{Value: s.sys.Kbd.PortB.Read(), DDR: s.sys.Kbd.PortB.ReadDDR()},
 	}
 	s.mu.Unlock()
 

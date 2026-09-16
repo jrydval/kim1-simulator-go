@@ -111,6 +111,57 @@ for (const rowLabels of VISUAL_LAYOUT) {
 const connstate = document.getElementById("connstate");
 const hex = (v, digits) => v.toString(16).toUpperCase().padStart(digits, "0");
 
+// I/O port LED panel: one row per RIOT port (App/Kbd x A/B), 8 LEDs each
+// (bit7 on the left .. bit0 on the right), lit to the pin's current
+// electrical level (output bits as driven, input bits as last sampled —
+// same as what a logic probe would read). A dashed LED marks an input pin
+// (DDR bit 0), a solid one an output pin (DDR bit 1).
+const IO_PORTS = [
+  { key: "appPA", label: "App PA" },
+  { key: "appPB", label: "App PB" },
+  { key: "kbdPA", label: "Kbd PA" },
+  { key: "kbdPB", label: "Kbd PB" },
+];
+
+const ioportsGrid = document.getElementById("ioports-grid");
+const ioLedEls = {};
+
+for (const { key, label } of IO_PORTS) {
+  const row = document.createElement("div");
+  row.className = "ioport-row";
+
+  const labelEl = document.createElement("span");
+  labelEl.className = "ioport-label";
+  labelEl.textContent = label;
+  row.appendChild(labelEl);
+
+  const leds = document.createElement("div");
+  leds.className = "ioport-leds";
+  const bitEls = [];
+  for (let bit = 7; bit >= 0; bit--) {
+    const led = document.createElement("div");
+    led.className = "ioled";
+    led.title = "bit " + bit;
+    leds.appendChild(led);
+    bitEls[bit] = led;
+  }
+  row.appendChild(leds);
+
+  ioportsGrid.appendChild(row);
+  ioLedEls[key] = bitEls;
+}
+
+function updatePort(key, port) {
+  const bitEls = ioLedEls[key];
+  for (let bit = 0; bit < 8; bit++) {
+    const on = (port.value & (1 << bit)) !== 0;
+    const isOutput = (port.ddr & (1 << bit)) !== 0;
+    const led = bitEls[bit];
+    led.classList.toggle("on", on);
+    led.classList.toggle("output", isOutput);
+  }
+}
+
 function connect() {
   const proto = location.protocol === "https:" ? "wss:" : "ws:";
   socket = new WebSocket(proto + "//" + location.host + "/ws");
@@ -136,6 +187,11 @@ function connect() {
     document.getElementById("reg-p").textContent = hex(msg.p, 2);
     document.getElementById("reg-cycles").textContent = msg.cycles;
     document.getElementById("instr").textContent = msg.instr;
+
+    updatePort("appPA", msg.appPA);
+    updatePort("appPB", msg.appPB);
+    updatePort("kbdPA", msg.kbdPA);
+    updatePort("kbdPB", msg.kbdPB);
 
     if (sstBtn) sstBtn.classList.toggle("on", msg.sst);
 
