@@ -180,6 +180,26 @@ button.key.switch.on {
   box-shadow: 0 0 5px var(--led-on);
 }
 
+/* App RIOT input switches -- sit directly under that port's LED row,
+   same width/gap so bits line up column-for-column. */
+.ioport-row.ioport-switches { margin-top: -2px; margin-bottom: 10px; }
+
+.ioswitch {
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  border-radius: 3px;
+  background: var(--key);
+  border: 1px solid #000;
+  cursor: pointer;
+}
+
+.ioswitch.on {
+  background: #3a6a3a;
+  border-color: #5a9a5a;
+  box-shadow: 0 0 4px #3a6a3a;
+}
+
 #tty {
   background: var(--panel);
   border-radius: 8px;

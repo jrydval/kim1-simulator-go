@@ -262,7 +262,9 @@ func (s *Server) broadcastState() {
 		// Copied rather than aliased: s.ttyLog's backing array can be
 		// mutated by a later appendTTY call while this message is still
 		// queued for (or being marshaled by) a slow client.
-		TTYLog: append([]ttyRun(nil), s.ttyLog...),
+		TTYLog:     append([]ttyRun(nil), s.ttyLog...),
+		AppSwitchA: s.sys.AppSwitchA,
+		AppSwitchB: s.sys.AppSwitchB,
 	}
 	s.mu.Unlock()
 

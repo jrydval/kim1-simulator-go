@@ -153,39 +153,68 @@ const hex = (v, digits) => v.toString(16).toUpperCase().padStart(digits, "0");
 // electrical level (output bits as driven, input bits as last sampled —
 // same as what a logic probe would read). A dashed LED marks an input pin
 // (DDR bit 0), a solid one an output pin (DDR bit 1).
+//
+// The App RIOT's pins (the real KIM-1's user application connector) also
+// get a row of switches beneath, standing in for hobbyist-wired toggle
+// switches -- there's nothing else driving those pins. The Kbd RIOT's
+// pins are all already dedicated to the keypad, display, and TTY, so
+// they get none.
 const IO_PORTS = [
-  { key: "appPA", label: "App PA" },
-  { key: "appPB", label: "App PB" },
-  { key: "kbdPA", label: "Kbd PA" },
-  { key: "kbdPB", label: "Kbd PB" },
+  { key: "appPA", label: "App PA", switchable: true, port: "A" },
+  { key: "appPB", label: "App PB", switchable: true, port: "B" },
+  { key: "kbdPA", label: "Kbd PA", switchable: false },
+  { key: "kbdPB", label: "Kbd PB", switchable: false },
 ];
 
 const ioportsGrid = document.getElementById("ioports-grid");
 const ioLedEls = {};
+const ioSwitchEls = {};
 
-for (const { key, label } of IO_PORTS) {
+function buildBitRow(extraClass, makeEl) {
   const row = document.createElement("div");
-  row.className = "ioport-row";
+  row.className = extraClass ? "ioport-row " + extraClass : "ioport-row";
 
   const labelEl = document.createElement("span");
   labelEl.className = "ioport-label";
-  labelEl.textContent = label;
   row.appendChild(labelEl);
 
-  const leds = document.createElement("div");
-  leds.className = "ioport-leds";
+  const wrap = document.createElement("div");
+  wrap.className = "ioport-leds";
   const bitEls = [];
   for (let bit = 7; bit >= 0; bit--) {
+    const el = makeEl(bit);
+    wrap.appendChild(el);
+    bitEls[bit] = el;
+  }
+  row.appendChild(wrap);
+  ioportsGrid.appendChild(row);
+  return { row, labelEl, bitEls };
+}
+
+for (const { key, label, switchable, port } of IO_PORTS) {
+  const leds = buildBitRow(null, (bit) => {
     const led = document.createElement("div");
     led.className = "ioled";
     led.title = "bit " + bit;
-    leds.appendChild(led);
-    bitEls[bit] = led;
-  }
-  row.appendChild(leds);
+    return led;
+  });
+  leds.labelEl.textContent = label;
+  ioLedEls[key] = leds.bitEls;
 
-  ioportsGrid.appendChild(row);
-  ioLedEls[key] = bitEls;
+  if (switchable) {
+    const switches = buildBitRow("ioport-switches", (bit) => {
+      const btn = document.createElement("button");
+      btn.className = "ioswitch";
+      btn.title = "Set App RIOT Port " + port + " bit " + bit + " input level (only takes effect while that pin is configured as an input)";
+      btn.addEventListener("click", () => {
+        const on = !btn.classList.contains("on");
+        btn.classList.toggle("on", on);
+        sendMsg({ type: "appswitch", port, bit, down: on });
+      });
+      return btn;
+    });
+    ioSwitchEls[key] = switches.bitEls;
+  }
 }
 
 function updatePort(key, port) {
@@ -196,6 +225,14 @@ function updatePort(key, port) {
     const led = bitEls[bit];
     led.classList.toggle("on", on);
     led.classList.toggle("output", isOutput);
+  }
+}
+
+function updateSwitches(key, value) {
+  const bitEls = ioSwitchEls[key];
+  if (!bitEls) return;
+  for (let bit = 0; bit < 8; bit++) {
+    bitEls[bit].classList.toggle("on", (value & (1 << bit)) !== 0);
   }
 }
 
@@ -229,6 +266,8 @@ function connect() {
     updatePort("appPB", msg.appPB);
     updatePort("kbdPA", msg.kbdPA);
     updatePort("kbdPB", msg.kbdPB);
+    updateSwitches("appPA", msg.appSwitchA);
+    updateSwitches("appPB", msg.appSwitchB);
 
     if (sstBtn) sstBtn.classList.toggle("on", msg.sst);
     ttySwitchBtn.classList.toggle("on", msg.ttySelect);

@@ -41,6 +41,16 @@ type System struct {
 	// vector at $17FA/$17FB to be set up by the user first, same as ST.
 	SST bool
 
+	// AppSwitchA/AppSwitchB are the input levels presented to the App
+	// RIOT's Port A/B pins that are currently configured as inputs (DDR
+	// bit 0) -- standing in for the toggle switches a real KIM-1 owner
+	// might wire to the application connector, since nothing else drives
+	// those pins. A pin currently configured as an output instead reads
+	// back whatever the CPU itself last drove, same as real hardware;
+	// see riot.Port.Read. Set via SetAppSwitch.
+	AppSwitchA uint8
+	AppSwitchB uint8
+
 	// DebugIO, if set, is called for every write to either RIOT's I/O
 	// register window (post address-decode), for diagnosing real ROM
 	// interoperability issues.
@@ -64,8 +74,35 @@ func New() *System {
 		TTY:     NewTTY(defaultTTYCyclesPerBit),
 	}
 	s.Kbd.PortA.InputFunc = s.keypadColumnInput
+	s.App.PortA.InputFunc = func() uint8 { return s.AppSwitchA }
+	s.App.PortB.InputFunc = func() uint8 { return s.AppSwitchB }
 	s.CPU = cpu.New(s)
 	return s
+}
+
+// SetAppSwitch sets or clears bit (0-7) of the App RIOT's Port A/B
+// switch bank. Only affects the pin's read value while that bit is
+// currently configured as an input (DDR 0); a bit configured as an
+// output ignores it, same as wiring a switch to a pin the CPU is itself
+// driving would on real hardware.
+func (s *System) SetAppSwitch(port byte, bit int, on bool) {
+	if bit < 0 || bit > 7 {
+		return
+	}
+	var target *uint8
+	switch port {
+	case 'A':
+		target = &s.AppSwitchA
+	case 'B':
+		target = &s.AppSwitchB
+	default:
+		return
+	}
+	if on {
+		*target |= 1 << uint(bit)
+	} else {
+		*target &^= 1 << uint(bit)
+	}
 }
 
 // LoadAppROM installs the application RIOT's (6530-003, $1800-$1BFF) 1KB

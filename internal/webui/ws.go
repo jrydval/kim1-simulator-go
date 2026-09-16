@@ -10,25 +10,27 @@ import (
 
 // stateMsg is broadcast to every connected client at a fixed UI rate.
 type stateMsg struct {
-	Type      string    `json:"type"` // "state"
-	A         uint8     `json:"a"`
-	X         uint8     `json:"x"`
-	Y         uint8     `json:"y"`
-	SP        uint8     `json:"sp"`
-	PC        uint16    `json:"pc"`
-	P         uint8     `json:"p"`
-	Cycles    uint64    `json:"cycles"`
-	Digits    [6]uint8  `json:"digits"`
-	Halted    bool      `json:"halted"`
-	Error     string    `json:"error,omitempty"`
-	SST       bool      `json:"sst"`
-	Instr     string    `json:"instr"`
-	AppPA     portState `json:"appPA"`
-	AppPB     portState `json:"appPB"`
-	KbdPA     portState `json:"kbdPA"`
-	KbdPB     portState `json:"kbdPB"`
-	TTYSelect bool      `json:"ttySelect"`
-	TTYLog    []ttyRun  `json:"ttyLog"`
+	Type       string    `json:"type"` // "state"
+	A          uint8     `json:"a"`
+	X          uint8     `json:"x"`
+	Y          uint8     `json:"y"`
+	SP         uint8     `json:"sp"`
+	PC         uint16    `json:"pc"`
+	P          uint8     `json:"p"`
+	Cycles     uint64    `json:"cycles"`
+	Digits     [6]uint8  `json:"digits"`
+	Halted     bool      `json:"halted"`
+	Error      string    `json:"error,omitempty"`
+	SST        bool      `json:"sst"`
+	Instr      string    `json:"instr"`
+	AppPA      portState `json:"appPA"`
+	AppPB      portState `json:"appPB"`
+	KbdPA      portState `json:"kbdPA"`
+	KbdPB      portState `json:"kbdPB"`
+	TTYSelect  bool      `json:"ttySelect"`
+	TTYLog     []ttyRun  `json:"ttyLog"`
+	AppSwitchA uint8     `json:"appSwitchA"`
+	AppSwitchB uint8     `json:"appSwitchB"`
 }
 
 // portState is one RIOT I/O port's current electrical state: Value is the
@@ -44,13 +46,16 @@ type portState struct {
 // button (RS = hardware reset, ST = single-step/NMI — both wired directly
 // on real KIM-1 hardware rather than scanned through the keypad matrix),
 // the SST slide switch's new position, the TTY/keyboard mode switch's new
-// position, or a line of text typed into the TTY terminal panel.
+// position, a line of text typed into the TTY terminal panel, or an App
+// RIOT input-switch position.
 type clientMsg struct {
-	Type string `json:"type"` // "key" | "reset" | "nmi" | "sst" | "ttyselect" | "ttysend"
+	Type string `json:"type"` // "key" | "reset" | "nmi" | "sst" | "ttyselect" | "ttysend" | "appswitch"
 	Row  int    `json:"row"`
 	Col  int    `json:"col"`
 	Down bool   `json:"down"`
 	Text string `json:"text"`
+	Port string `json:"port"` // "appswitch": "A" or "B"
+	Bit  int    `json:"bit"`  // "appswitch": 0-7
 }
 
 type client struct {
@@ -121,6 +126,10 @@ func (s *Server) handleClientMsg(msg clientMsg) {
 	case "ttysend":
 		s.sys.TTY.Send([]byte(msg.Text)...)
 		s.appendTTY(msg.Text, true)
+	case "appswitch":
+		if len(msg.Port) == 1 {
+			s.sys.SetAppSwitch(msg.Port[0], msg.Bit, msg.Down)
+		}
 	}
 }
 

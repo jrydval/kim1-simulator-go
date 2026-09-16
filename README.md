@@ -36,8 +36,12 @@ Implemented and tested (`go test ./...`):
   what you're actually examining via `AD`/`DA`/`+`, not the CPU's own PC
   (almost always deep in idle monitor code) — shown next to the register
   debug panel, an I/O port panel showing both RIOTs' Port A/B pins as
-  LEDs (lit = high, solid outline = output pin, dashed = input pin), and
-  a TTY terminal panel (see below).
+  LEDs (lit = high, solid outline = output pin, dashed = input pin) —
+  with a row of switches under the App RIOT's (the real KIM-1's user
+  application connector) pins to drive whichever are currently
+  configured as inputs, standing in for hobbyist-wired toggle switches
+  since nothing else drives those pins — and a TTY terminal panel (see
+  below).
 
 Not yet implemented: the cassette interface, breakpoints, and state
 snapshot save/restore.
