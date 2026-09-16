@@ -69,11 +69,15 @@ monitor entered on the display):
   `VISUAL_LAYOUT`), which is unrelated to the electrical scan-matrix
   layout above; the UI maps each legend from one to the other.
 
-**Not yet fully verified:** GO's exact "jump to address" sequencing
-(whether/how it uses an address committed via AD or PC) behaved
-inconsistently in testing — pressing GO didn't land on the address
-entered via AD in any sequence tried so far. Doesn't affect the
-key-identity mapping above, which is independently confirmed.
+- GO: confirmed working — AD, enter an address, deposit a program via DA
+  (e.g. `4C 00 02` = `JMP $0200` at $0200, a self-loop that makes success
+  trivial to observe as PC staying put), AD the same address again, GO:
+  PC lands on and stays at the entered address. (An earlier note here
+  claimed GO's target-address handling was unverified/inconsistent; that
+  was a bug in the *test script's* byte-deposit sequence — depositing "4"
+  then "C" without checking the result actually wrote `$4D`, a different
+  but still legal opcode, which is why the CPU didn't loop as expected.
+  GO itself was never at fault.)
 
 ## Sources
 
