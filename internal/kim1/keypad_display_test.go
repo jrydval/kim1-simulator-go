@@ -48,6 +48,30 @@ func TestDisplayScanSequenceAcrossAllDigits(t *testing.T) {
 	}
 }
 
+func TestDisplayIgnoresTransientBlankBeforeNextSelect(t *testing.T) {
+	// Regression test for the real KIM-1 monitor ROM's actual scan
+	// pattern: select digit -> write real segments -> hold -> write an
+	// all-zero pattern for a handful of cycles immediately before
+	// selecting the next digit. On real hardware that blank pulse is far
+	// too brief to be visible; a shadow buffer that took it at face
+	// value showed a flickering, mostly-blank display instead of the
+	// intended steady image (observed when bringing up real ROMs).
+	s := New()
+	s.Write(kbdPADDR, 0x7F)
+	s.Write(kbdPBData, 5<<1) // select digit index 1
+	s.Write(kbdPAData, 0x3F) // real segment pattern
+	s.Write(kbdPAData, 0x00) // transitional blank, still on digit 1 — must NOT clear it
+
+	if got := s.Display.Digits[1]; got != 0x3F {
+		t.Fatalf("Display.Digits[1] = %02X, want 0x3F (transient blank before deselect must be ignored)", got)
+	}
+
+	s.Write(kbdPBData, 6<<1) // move on to digit index 2 — digit 1 must stay as it was
+	if got := s.Display.Digits[1]; got != 0x3F {
+		t.Fatalf("Display.Digits[1] = %02X after moving to next digit, want 0x3F still", got)
+	}
+}
+
 func TestDisplayIgnoresNonDigitMuxLines(t *testing.T) {
 	s := New()
 	s.Write(kbdPADDR, 0x7F)

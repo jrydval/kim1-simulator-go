@@ -21,6 +21,11 @@ type System struct {
 
 	Keypad  *Keypad
 	Display *Display
+
+	// DebugIO, if set, is called for every write to either RIOT's I/O
+	// register window (post address-decode), for diagnosing real ROM
+	// interoperability issues.
+	DebugIO func(chip string, offset uint16, v uint8)
 }
 
 // New returns a System with empty RAM/ROM. Load ROM images with
@@ -114,9 +119,15 @@ func (s *System) Write(addr uint16, v uint8) {
 		s.RAM[addr-ramStart] = v
 	case addr >= appIOStart && addr <= appIOEnd:
 		writeIO(s.App, addr-appIOStart, v)
+		if s.DebugIO != nil {
+			s.DebugIO("app", addr-appIOStart, v)
+		}
 	case addr >= kbdIOStart && addr <= kbdIOEnd:
 		writeIO(s.Kbd, addr-kbdIOStart, v)
 		s.refreshDisplay()
+		if s.DebugIO != nil {
+			s.DebugIO("kbd", addr-kbdIOStart, v)
+		}
 	case addr >= appRAMStart && addr <= appRAMEnd:
 		s.App.WriteRAM(uint8(addr-appRAMStart), v)
 	case addr >= kbdRAMStart && addr <= kbdRAMEnd:

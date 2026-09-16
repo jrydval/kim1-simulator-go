@@ -58,29 +58,49 @@ func (s *Server) Handler() http.Handler {
 	return mux
 }
 
-// RunCPU steps the emulated CPU until ctx is done, throttled to TargetHz
-// (in ~10ms slices) if set.
+// RunCPU steps the emulated CPU until ctx is done, throttled to
+// approximately TargetHz.
+//
+// The KIM-1's display is multiplexed entirely in software: the monitor
+// ROM lights one digit at a time in a tight loop, relying on the CPU
+// running continuously so persistence of vision (and, here, the
+// kim1.Display shadow buffer — see docs/kim1-memory-map.md) sees a
+// complete, evenly-refreshed image. Pacing execution in large chunks
+// (e.g. run 10,000 cycles, then sleep ~10ms) freezes the CPU mid-way
+// through a multiplex pass for most of that sleep — since a full 6-digit
+// pass takes only ~4000 cycles, a naive large-chunk throttle regularly
+// stops with some digits lit and others already blanked, which a client
+// snapshot then captures as a flickering, partially-blank display. Small,
+// frequent batches (well under one digit's ~700-cycle dwell time) keep
+// the CPU's "off" gaps short enough that many complete passes still
+// happen between any two broadcast samples, matching real hardware.
 func (s *Server) RunCPU(ctx context.Context) {
 	if s.TargetHz <= 0 {
 		s.runUnthrottled(ctx)
 		return
 	}
-	const slice = 10 * time.Millisecond
-	budgetPerSlice := int(float64(s.TargetHz) * slice.Seconds())
+	const batch = 100 // cycles per slice, well under one display digit's dwell time
+	start := time.Now()
+	var executed uint64
 
-	ticker := time.NewTicker(slice)
-	defer ticker.Stop()
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case <-ticker.C:
-			s.mu.Lock()
-			spent := 0
-			for spent < budgetPerSlice {
-				spent += s.sys.Step()
-			}
-			s.mu.Unlock()
+		default:
+		}
+
+		s.mu.Lock()
+		spent := 0
+		for spent < batch {
+			spent += s.sys.Step()
+		}
+		s.mu.Unlock()
+		executed += uint64(spent)
+
+		targetElapsed := time.Duration(float64(executed) / float64(s.TargetHz) * float64(time.Second))
+		if lag := targetElapsed - time.Since(start); lag > 0 {
+			time.Sleep(lag)
 		}
 	}
 }

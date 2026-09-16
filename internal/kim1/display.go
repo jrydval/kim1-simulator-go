@@ -23,10 +23,27 @@ func NewDisplay() *Display {
 	return &Display{}
 }
 
-// Update latches a new raw segment pattern for the given digit index (0-5).
+// Update latches a new raw segment pattern for the given digit index
+// (0-5). A write of segments == 0 is deliberately ignored rather than
+// blanking the digit.
+//
+// Confirmed against the real KIM-1 monitor ROM's boot-time display scan:
+// its digit loop selects a digit, writes the real segment pattern, holds
+// it for ~680 cycles, then writes an all-zero pattern for only ~4 cycles
+// immediately before selecting the next digit — invisibly brief on real
+// hardware, but if taken at face value by this shadow buffer it makes
+// every digit appear blank except whichever one the CPU happens to be
+// mid-dwell on at sample time, i.e. a flickering, mostly-blank display.
+// Trade-off: a digit that's genuinely meant to go blank (e.g.
+// leading-zero suppression) keeps showing its last nonzero pattern
+// instead of clearing.
 func (d *Display) Update(digit int, segments uint8) {
 	if digit < 0 || digit >= len(d.Digits) {
 		return
 	}
-	d.Digits[digit] = segments & 0x7F
+	segments &= 0x7F
+	if segments == 0 {
+		return
+	}
+	d.Digits[digit] = segments
 }
