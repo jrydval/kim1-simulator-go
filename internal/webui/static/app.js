@@ -61,6 +61,7 @@ function setDigit(index, bits) {
 }
 
 let socket = null;
+let sstBtn = null;
 
 function sendMsg(msg) {
   if (socket && socket.readyState === WebSocket.OPEN) {
@@ -75,8 +76,13 @@ for (const rowLabels of VISUAL_LAYOUT) {
 
     if (label === "SST") {
       btn.className = "key switch";
-      btn.disabled = true;
-      btn.title = "Single-step mode switch — not yet implemented";
+      btn.title = "Single-step: NMI after every instruction outside ROM. Needs the NMI vector at $17FA/$17FB set up first (see README).";
+      btn.addEventListener("click", () => {
+        const on = !btn.classList.contains("on");
+        btn.classList.toggle("on", on);
+        sendMsg({ type: "sst", down: on });
+      });
+      sstBtn = btn;
     } else if (label === "RS") {
       btn.className = "key ctrl";
       btn.title = "Reset (direct to CPU RESET, not part of the keypad matrix)";
@@ -129,6 +135,8 @@ function connect() {
     document.getElementById("reg-pc").textContent = hex(msg.pc, 4);
     document.getElementById("reg-p").textContent = hex(msg.p, 2);
     document.getElementById("reg-cycles").textContent = msg.cycles;
+
+    if (sstBtn) sstBtn.classList.toggle("on", msg.sst);
 
     const flagNames = ["C", "Z", "I", "D", "B", "-", "V", "N"];
     const flags = flagNames

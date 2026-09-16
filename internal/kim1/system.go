@@ -22,6 +22,16 @@ type System struct {
 	Keypad  *Keypad
 	Display *Display
 
+	// SST mirrors the KIM-1's physical Single-Step slide switch. When on,
+	// each instruction fetched from outside ROM (i.e. the user's own
+	// program, not the monitor) raises an NMI immediately after it
+	// executes — mirroring the real hardware, which watches the 6502's
+	// SYNC line to fire NMI on every opcode fetch, with the upper ROM
+	// address range masked out so the monitor's own NMI handler (and the
+	// rest of the monitor) never single-steps itself. Requires the NMI
+	// vector at $17FA/$17FB to be set up by the user first, same as ST.
+	SST bool
+
 	// DebugIO, if set, is called for every write to either RIOT's I/O
 	// register window (post address-decode), for diagnosing real ROM
 	// interoperability issues.
@@ -78,9 +88,21 @@ func (s *System) Reset() {
 // Step executes one CPU instruction and ticks both RIOT timers by the
 // number of cycles it consumed.
 func (s *System) Step() int {
+	startPC := s.CPU.PC
+	opcode := s.Read(startPC)
+
 	cycles := s.CPU.Step()
 	s.App.TickTimer(cycles)
 	s.Kbd.TickTimer(cycles)
+
+	if s.SST && startPC < appROMStart && opcode != 0x00 && !s.CPU.WasInterrupt() {
+		// Just executed a normal instruction fetched from outside ROM
+		// (not BRK, which already enters the interrupt handler on its
+		// own, and not an interrupt response already in progress) —
+		// raise NMI so the monitor breaks in after exactly this one
+		// instruction, matching the SYNC-line-driven hardware mechanism.
+		s.CPU.NMI()
+	}
 	return cycles
 }
 

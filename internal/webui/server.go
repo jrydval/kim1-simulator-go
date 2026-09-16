@@ -182,6 +182,7 @@ func (s *Server) broadcastState() {
 		Digits: s.sys.Display.Digits,
 		Halted: s.halted,
 		Error:  s.haltReason,
+		SST:    s.sys.SST,
 	}
 	s.mu.Unlock()
 

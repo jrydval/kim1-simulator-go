@@ -41,8 +41,9 @@ type CPU struct {
 	// used by callers (e.g. kim1.System) to tick peripherals in step.
 	Cycles uint64
 
-	irqPending bool
-	nmiPending bool
+	irqPending           bool
+	nmiPending           bool
+	lastStepWasInterrupt bool
 }
 
 // New creates a CPU driving the given Bus. Call Reset before running it.
@@ -138,10 +139,12 @@ func (c *CPU) handleInterrupt(vector uint16, brk bool) int {
 // Step executes exactly one instruction (or services a pending interrupt)
 // and returns the number of cycles consumed.
 func (c *CPU) Step() int {
+	c.lastStepWasInterrupt = false
 	if c.nmiPending {
 		c.nmiPending = false
 		n := c.handleInterrupt(nmiVector, false)
 		c.Cycles += uint64(n)
+		c.lastStepWasInterrupt = true
 		return n
 	}
 	if c.irqPending {
@@ -149,6 +152,7 @@ func (c *CPU) Step() int {
 		if !c.flag(FlagI) {
 			n := c.handleInterrupt(irqVector, false)
 			c.Cycles += uint64(n)
+			c.lastStepWasInterrupt = true
 			return n
 		}
 	}
@@ -157,3 +161,9 @@ func (c *CPU) Step() int {
 	c.Cycles += uint64(n)
 	return n
 }
+
+// WasInterrupt reports whether the most recent Step call serviced a
+// pending IRQ/NMI (via IRQ/NMI) rather than executing a normal
+// instruction. Note this is false for BRK, which is a normal
+// instruction fetch that happens to also enter the interrupt handler.
+func (c *CPU) WasInterrupt() bool { return c.lastStepWasInterrupt }

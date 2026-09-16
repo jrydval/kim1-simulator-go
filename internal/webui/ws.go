@@ -21,13 +21,15 @@ type stateMsg struct {
 	Digits [6]uint8 `json:"digits"`
 	Halted bool     `json:"halted"`
 	Error  string   `json:"error,omitempty"`
+	SST    bool     `json:"sst"`
 }
 
-// clientMsg is sent by the browser: a keypad press/release, or a control
+// clientMsg is sent by the browser: a keypad press/release, a control
 // button (RS = hardware reset, ST = single-step/NMI — both wired directly
-// on real KIM-1 hardware rather than scanned through the keypad matrix).
+// on real KIM-1 hardware rather than scanned through the keypad matrix),
+// or the SST slide switch's new position.
 type clientMsg struct {
-	Type string `json:"type"` // "key" | "reset" | "nmi"
+	Type string `json:"type"` // "key" | "reset" | "nmi" | "sst"
 	Row  int    `json:"row"`
 	Col  int    `json:"col"`
 	Down bool   `json:"down"`
@@ -94,6 +96,8 @@ func (s *Server) handleClientMsg(msg clientMsg) {
 		s.haltReason = ""
 	case "nmi":
 		s.sys.CPU.NMI()
+	case "sst":
+		s.sys.SST = msg.Down
 	}
 }
 

@@ -318,6 +318,35 @@ func TestBRKandRTI(t *testing.T) {
 	}
 }
 
+func TestWasInterrupt(t *testing.T) {
+	c, ram := newTestCPU()
+	ram.Write(0xFFFA, 0x00)
+	ram.Write(0xFFFB, 0x90)           // NMI vector -> $9000
+	run(c, ram, 0x0200, []byte{0xEA}) // NOP: a normal instruction
+	if c.WasInterrupt() {
+		t.Fatalf("WasInterrupt() after a normal instruction, want false")
+	}
+
+	c.NMI()
+	c.Step() // services the pending NMI instead of fetching at PC
+	if !c.WasInterrupt() {
+		t.Fatalf("WasInterrupt() after servicing NMI, want true")
+	}
+	if c.PC != 0x9000 {
+		t.Fatalf("PC after NMI = $%04X, want $9000", c.PC)
+	}
+
+	// BRK enters the interrupt handler too, but via a normal instruction
+	// fetch/execute, not the pending-IRQ/NMI path — WasInterrupt should
+	// report false for it.
+	ram.Write(0xFFFE, 0x00)
+	ram.Write(0xFFFF, 0xA0) // IRQ/BRK vector -> $A000
+	run(c, ram, 0x0300, []byte{0x00, 0xEA})
+	if c.WasInterrupt() {
+		t.Fatalf("WasInterrupt() after BRK, want false (BRK is a normal instruction fetch)")
+	}
+}
+
 func TestIllegalOpcodePanics(t *testing.T) {
 	c, ram := newTestCPU()
 	ram.Load(0x0200, []byte{0x02}) // undefined opcode

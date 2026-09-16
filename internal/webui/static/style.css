@@ -104,8 +104,14 @@ button.key.switch {
   background: transparent;
   border-style: dashed;
   color: #666;
-  cursor: default;
   font-size: 0.7rem;
+}
+
+button.key.switch.on {
+  background: #2a4a2a;
+  border-style: solid;
+  border-color: #4a8a4a;
+  color: #9adf9a;
 }
 
 #debug {

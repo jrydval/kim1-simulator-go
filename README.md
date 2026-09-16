@@ -21,7 +21,9 @@ Implemented and tested (`go test ./...`):
   multiplexing logic (modeling the external 74145 decoder).
 - `internal/webui` + `cmd/kim1` — a Go web server exposing the running
   KIM-1's display and keypad over WebSocket, meant to be opened via VS
-  Code's built-in Simple Browser panel.
+  Code's built-in Simple Browser panel, including a working SST
+  (single-step) switch mirroring the real hardware's SYNC-driven NMI
+  mechanism.
 
 Not yet implemented: the TTY/cassette interface, a disassembler/debugger,
 and state snapshot save/restore.
@@ -67,6 +69,19 @@ If you also want to use `ST` (single-step/stop), set the NMI vector the
 same way at `$17FA`/`$17FB`. Without either setup, both `BRK` and `ST`
 hang instead of returning — `RS` (full reset) always works regardless,
 but doesn't preserve registers.
+
+## Single-stepping (SST)
+
+The `SST` button in the web UI is a toggle mirroring the real KIM-1's
+physical Single-Step slide switch. With it on, every instruction executed
+from RAM (your program) — but not from ROM (the monitor itself) — is
+followed by an NMI, handing control back to the monitor after exactly one
+instruction. Requires the NMI vector to be set up first (see above).
+Press `GO` repeatedly to step through your program one instruction at a
+time; the monitor saves and restores registers across each step, so
+watch the display (or single-step slowly) rather than expecting to catch
+live CPU register values mid-step — the monitor's own display-scan loop
+reuses those same registers between your steps.
 
 ## ROM images
 
