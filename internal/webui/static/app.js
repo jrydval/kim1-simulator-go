@@ -135,7 +135,7 @@ function connect() {
     document.getElementById("reg-pc").textContent = hex(msg.pc, 4);
     document.getElementById("reg-p").textContent = hex(msg.p, 2);
     document.getElementById("reg-cycles").textContent = msg.cycles;
-    document.getElementById("instr").textContent = hex(msg.pc, 4) + ":  " + msg.instr;
+    document.getElementById("instr").textContent = msg.instr;
 
     if (sstBtn) sstBtn.classList.toggle("on", msg.sst);
 

@@ -14,7 +14,6 @@ import (
 	"sync"
 	"time"
 
-	"6502/internal/cpu"
 	"6502/internal/kim1"
 )
 
@@ -171,7 +170,7 @@ func (s *Server) BroadcastLoop(ctx context.Context) {
 
 func (s *Server) broadcastState() {
 	s.mu.Lock()
-	instr, _ := cpu.Disassemble(s.sys, s.sys.CPU.PC)
+	instr := disassembleAtDisplayAddress(s.sys, s.sys.Display.Digits)
 	msg := stateMsg{
 		Type:   "state",
 		A:      s.sys.CPU.A,

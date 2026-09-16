@@ -23,8 +23,11 @@ Implemented and tested (`go test ./...`):
   KIM-1's display and keypad over WebSocket, meant to be opened via VS
   Code's built-in Simple Browser panel, including a working SST
   (single-step) switch mirroring the real hardware's SYNC-driven NMI
-  mechanism, and a live disassembly of the instruction at PC
-  (`internal/cpu/disassemble.go`) shown next to the register debug panel.
+  mechanism, and a live disassembly (`internal/cpu/disassemble.go`) of
+  the instruction at whatever address is shown on the display — i.e.
+  what you're actually examining via `AD`/`DA`/`+`, not the CPU's own PC
+  (almost always deep in idle monitor code) — shown next to the register
+  debug panel.
 
 Not yet implemented: the TTY/cassette interface, breakpoints, and state
 snapshot save/restore.
