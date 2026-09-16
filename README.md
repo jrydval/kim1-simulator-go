@@ -1,5 +1,8 @@
 # KIM-1 Simulator in Golang
 
+<img width="596" height="919" alt="image" src="https://github.com/user-attachments/assets/3dfb8325-6b78-4efe-9dab-e8d27ebf3c0d" />
+
+
 A cycle-accurate MOS 6502 CPU emulator with a full simulation of the
 [KIM-1](https://en.wikipedia.org/wiki/KIM-1) single-board computer
 (MOS Technology, 1976): CPU, system RAM, both 6530 RIOT chips (I/O,
