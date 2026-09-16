@@ -50,6 +50,24 @@ in a browser, or in VS Code via the **Simple Browser: Show** command —
 there's also a "Run KIM-1" task in `.vscode/tasks.json` that prompts for
 the two ROM paths and starts the server for you.
 
+## Using the keypad: returning to the monitor from a program
+
+`BRK` and `ST` only return control to the monitor if the interrupt
+vectors in RIOT RAM have been set up first — this is standard KIM-1
+behavior (per the original documentation), not something the monitor ROM
+initializes automatically, and this emulator intentionally doesn't
+special-case it either. Before relying on `BRK` to end a program:
+
+1. `AD` → `17FE`, `DA` → deposit `00`, `+`, deposit `1C` (sets the IRQ
+   vector to `$1C00`)
+2. End your program with `BRK` (opcode `$00`) — it will now cleanly
+   return to the monitor's address/data display.
+
+If you also want to use `ST` (single-step/stop), set the NMI vector the
+same way at `$17FA`/`$17FB`. Without either setup, both `BRK` and `ST`
+hang instead of returning — `RS` (full reset) always works regardless,
+but doesn't preserve registers.
+
 ## ROM images
 
 This repository does **not** include KIM-1 ROM dumps — they are
