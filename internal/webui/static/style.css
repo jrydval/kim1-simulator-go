@@ -4,6 +4,8 @@
   --panel: #262626;
   --led-off: #3a1a1a;
   --led-on: #ff4433;
+  --led-in-off: #16213a;
+  --led-in-on: #4da6ff;
   --text: #ddd;
   --key: #3a3a3a;
   --key-active: #555;
@@ -145,6 +147,12 @@ button.key.switch.on {
   margin: 0 0 10px;
 }
 
+#ioports h2 .legend {
+  letter-spacing: normal;
+  color: #666;
+  font-size: 0.9em;
+}
+
 .ioport-row {
   display: flex;
   align-items: center;
@@ -165,17 +173,28 @@ button.key.switch.on {
   gap: 5px;
 }
 
+/* Blue (input pin, reading an externally-driven/switch level) vs. red
+   (output pin, driven by the CPU) is the primary signal here -- more
+   visible at a glance than a border-style difference alone. */
 .ioled {
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: var(--led-off);
-  border: 1px dashed #555;
+  background: var(--led-in-off);
+  border: 1px solid #24344f;
 }
 
-.ioled.output { border-style: solid; border-color: #777; }
-
 .ioled.on {
+  background: var(--led-in-on);
+  box-shadow: 0 0 5px var(--led-in-on);
+}
+
+.ioled.output {
+  background: var(--led-off);
+  border-color: #666;
+}
+
+.ioled.output.on {
   background: var(--led-on);
   box-shadow: 0 0 5px var(--led-on);
 }

@@ -151,8 +151,9 @@ const hex = (v, digits) => v.toString(16).toUpperCase().padStart(digits, "0");
 // I/O port LED panel: one row per RIOT port (App/Kbd x A/B), 8 LEDs each
 // (bit7 on the left .. bit0 on the right), lit to the pin's current
 // electrical level (output bits as driven, input bits as last sampled —
-// same as what a logic probe would read). A dashed LED marks an input pin
-// (DDR bit 0), a solid one an output pin (DDR bit 1).
+// same as what a logic probe would read). Blue marks an input pin (DDR
+// bit 0), red an output pin (DDR bit 1) -- color, not just lit/unlit, so
+// the two are distinguishable at a glance (see .ioled in style.css).
 //
 // The App RIOT's pins (the real KIM-1's user application connector) also
 // get a row of switches beneath, standing in for hobbyist-wired toggle
