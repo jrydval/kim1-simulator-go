@@ -7,7 +7,9 @@ package webui
 import (
 	"context"
 	"embed"
+	"fmt"
 	"io/fs"
+	"log"
 	"net/http"
 	"sync"
 	"time"
@@ -33,6 +35,14 @@ type Server struct {
 	// TargetHz throttles the emulated CPU to approximate the real KIM-1's
 	// ~1MHz clock; 0 means run unthrottled.
 	TargetHz int
+
+	// halted and haltReason record a CPU panic (e.g. an illegal opcode —
+	// very possible once GO starts executing arbitrary/uninitialized
+	// memory as a program). Without this, an unrecovered panic in the
+	// background CPU goroutine would silently kill the whole process,
+	// which looks exactly like the UI freezing. Cleared by RS (reset).
+	halted     bool
+	haltReason string
 }
 
 // NewServer returns a Server driving sys, throttled to approximately the
@@ -90,12 +100,11 @@ func (s *Server) RunCPU(ctx context.Context) {
 		default:
 		}
 
-		s.mu.Lock()
-		spent := 0
-		for spent < batch {
-			spent += s.sys.Step()
+		spent := s.stepBatch(batch)
+		if spent == 0 {
+			time.Sleep(50 * time.Millisecond) // halted: avoid busy-spinning until Reset
+			continue
 		}
-		s.mu.Unlock()
 		executed += uint64(spent)
 
 		targetElapsed := time.Duration(float64(executed) / float64(s.TargetHz) * float64(time.Second))
@@ -112,13 +121,34 @@ func (s *Server) runUnthrottled(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		default:
-			s.mu.Lock()
-			for i := 0; i < batch; i++ {
-				s.sys.Step()
+			if s.stepBatch(batch) == 0 {
+				time.Sleep(50 * time.Millisecond) // halted: avoid busy-spinning until Reset
 			}
-			s.mu.Unlock()
 		}
 	}
+}
+
+// stepBatch runs up to n cycles' worth of CPU steps under the lock,
+// recovering from (and logging) any panic — such as an illegal opcode —
+// rather than letting it kill the whole process. Once halted, it's a
+// no-op until Reset clears the flag. Returns the cycles actually spent.
+func (s *Server) stepBatch(minCycles int) (spent int) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.halted {
+		return 0
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			s.halted = true
+			s.haltReason = fmt.Sprint(r)
+			log.Printf("kim1: CPU halted: %v (press RS to reset)", r)
+		}
+	}()
+	for spent < minCycles {
+		spent += s.sys.Step()
+	}
+	return spent
 }
 
 // BroadcastLoop pushes the current system state to all connected
@@ -150,6 +180,8 @@ func (s *Server) broadcastState() {
 		P:      s.sys.CPU.P,
 		Cycles: s.sys.CPU.Cycles,
 		Digits: s.sys.Display.Digits,
+		Halted: s.halted,
+		Error:  s.haltReason,
 	}
 	s.mu.Unlock()
 

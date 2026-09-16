@@ -77,3 +77,63 @@ func TestWebSocketKeyMessageReachesKeypad(t *testing.T) {
 	}
 	t.Fatalf("key press did not reach Keypad within timeout")
 }
+
+// TestCPUPanicDoesNotCrashServer is a regression test: an unrecovered
+// panic in the CPU-stepping goroutine (e.g. an illegal opcode reached by
+// GO-ing into uninitialized memory) used to kill the whole process
+// silently, which from the browser looked exactly like the UI freezing.
+func TestCPUPanicDoesNotCrashServer(t *testing.T) {
+	sys := kim1.New()
+	sys.Reset()
+	sys.Write(0x0200, 0x02) // undefined opcode
+	sys.CPU.PC = 0x0200
+
+	s := NewServer(sys)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go s.RunCPU(ctx)
+
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		s.mu.Lock()
+		halted := s.halted
+		s.mu.Unlock()
+		if halted {
+			break
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+
+	s.mu.Lock()
+	halted, reason := s.halted, s.haltReason
+	s.mu.Unlock()
+	if !halted {
+		t.Fatalf("server did not record the halt within timeout")
+	}
+	if reason == "" {
+		t.Fatalf("haltReason is empty")
+	}
+
+	// Confirm the CPU has actually stopped advancing, not just flagged.
+	s.mu.Lock()
+	before := sys.CPU.Cycles
+	s.mu.Unlock()
+	time.Sleep(100 * time.Millisecond)
+	s.mu.Lock()
+	after := sys.CPU.Cycles
+	s.mu.Unlock()
+	if before != after {
+		t.Fatalf("CPU kept running after halt: cycles %d -> %d", before, after)
+	}
+
+	// Reset (as the RS button does) should clear the halt and let
+	// execution resume.
+	s.handleClientMsg(clientMsg{Type: "reset"})
+	time.Sleep(100 * time.Millisecond)
+	s.mu.Lock()
+	stillHalted := s.halted
+	s.mu.Unlock()
+	if stillHalted {
+		t.Fatalf("halt was not cleared by reset")
+	}
+}

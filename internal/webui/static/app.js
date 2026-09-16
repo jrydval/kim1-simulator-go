@@ -1,15 +1,18 @@
-// Bit->segment mapping (bit0=a, bit1=b, ... bit6=g) and the keypad
-// row/column layout below are best-effort placeholders pending schematic
-// verification (see docs/kim1-memory-map.md) — easy to correct here in
-// one place without touching the Go emulation core.
+// Bit->segment mapping (bit0=a, bit1=b, ... bit6=g) is a best-effort
+// placeholder pending schematic verification (see
+// docs/kim1-memory-map.md) — easy to correct here in one place without
+// touching the Go emulation core. It happens to match the real monitor
+// ROM's own hex segment table byte-for-byte, so it's very likely right.
 const SEGMENTS = ["a", "b", "c", "d", "e", "f", "g"];
 
-// 3 rows x 7 columns, matching kim1.Keypad's matrix. RS and ST are real
-// KIM-1 controls wired directly to CPU RESET/NMI, not part of this matrix.
+// 3 rows x 7 columns, matching kim1.Keypad's matrix. Verified empirically
+// against the real monitor ROM (pressing each (row,col) and reading what
+// it entered on the display) — not a guess. RS and ST are real KIM-1
+// controls wired directly to CPU RESET/NMI, not part of this matrix.
 const KEY_LAYOUT = [
-  ["0", "1", "2", "3", "4", "5", "6"],
-  ["7", "8", "9", "A", "B", "C", "D"],
-  ["E", "F", "AD", "DA", "+", "GO", "PC"],
+  ["6", "5", "4", "3", "2", "1", "0"],
+  ["D", "C", "B", "A", "9", "8", "7"],
+  ["AD", "GO", "+", "DA", "PC", "F", "E"],
 ];
 
 const displayEl = document.getElementById("display");
@@ -101,6 +104,14 @@ function connect() {
       .reverse()
       .join(" ");
     document.getElementById("flags").textContent = flags;
+
+    const banner = document.getElementById("haltbanner");
+    if (msg.halted) {
+      banner.textContent = "CPU halted: " + msg.error + " — press RS to reset";
+      banner.hidden = false;
+    } else {
+      banner.hidden = true;
+    }
   };
 }
 

@@ -48,11 +48,23 @@ decoder. Its outputs select one of 10 lines:
 - Lines 4–9: display digit select (digit index = line − 4); Port A, in
   output mode, drives that digit's segments
 
-**Not yet verified against a schematic:** the exact bit→segment (a–g)
-assignment on Port A, and the exact physical key→(row,column) layout.
-`internal/kim1/display.go` stores the raw 7-bit segment pattern rather
-than decoded segment names specifically so this remaining uncertainty is
-isolated to the presentation layer.
+**Verified by direct observation against real ROM dumps** (bringing up
+`cmd/kim1` against real `6530-002.bin`/`6530-003.bin` images, pressing
+each keypad (row, column) position programmatically and reading what the
+monitor entered on the display):
+
+- Physical key → (row, column): row 0 columns 0-6 are hex digits 6,5,4,
+  3,2,1,0; row 1 columns 0-6 are D,C,B,A,9,8,7; row 2 is AD,GO,+,DA,PC,F,E.
+  See `internal/webui/static/app.js`'s `KEY_LAYOUT`, the single place this
+  mapping lives.
+- Segment bit→letter assignment (bit0=a … bit6=g) matches the monitor
+  ROM's own hex-digit segment table byte-for-byte once bit 7 is masked
+  off, e.g. `$BF"&0x7F=0x3F` for "0" (segments a-f on, g off).
+
+**Not yet fully verified:** GO's exact "jump to committed address"
+sequencing (interaction between the AD and PC keys) behaved
+inconsistently in testing and needs more investigation; it doesn't affect
+the key-identity mapping above.
 
 ## Sources
 
@@ -63,3 +75,5 @@ isolated to the presentation layer.
   KIM-1 monitor source listing (brainwagon/kim-1 on GitHub)
 - 74145 keypad/display multiplexing architecture (6502.org "What is the
   KIM-1?" hardware overview)
+- Key legend layout and segment table: derived empirically from real ROM
+  behavior, not a secondary source (see above)

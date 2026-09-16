@@ -6,11 +6,12 @@ package kim1
 // reading Port A, whose bits 0-6 read back active-low for any held key in
 // the currently-selected row.
 //
-// Flag: the row-scan mechanism (74145 decode, active-low column read on
-// Port A) is well documented; the exact physical key-to-(row,column)
-// assignment below is a best-effort placeholder and should be
-// cross-checked against a KIM-1 keypad schematic/diagram before relying
-// on it to match real physical key legends.
+// (row, column) coordinates here are just the scan matrix position — they
+// carry no meaning of their own. Which physical key legend (0-9, A-F, AD,
+// DA, +, GO, PC) sits at which (row, column) was verified empirically
+// against the real monitor ROM (see internal/webui/static/app.js's
+// KEY_LAYOUT, which is the presentation-layer mapping of legend to
+// coordinate) rather than guessed from a schematic.
 type Keypad struct {
 	pressed [3][7]bool // [row][column], matching the 3 row-select lines and 7 usable Port A bits
 }

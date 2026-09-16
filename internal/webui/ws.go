@@ -19,6 +19,8 @@ type stateMsg struct {
 	P      uint8    `json:"p"`
 	Cycles uint64   `json:"cycles"`
 	Digits [6]uint8 `json:"digits"`
+	Halted bool     `json:"halted"`
+	Error  string   `json:"error,omitempty"`
 }
 
 // clientMsg is sent by the browser: a keypad press/release, or a control
@@ -88,6 +90,8 @@ func (s *Server) handleClientMsg(msg clientMsg) {
 		s.sys.Keypad.SetPressed(msg.Row, msg.Col, msg.Down)
 	case "reset":
 		s.sys.Reset()
+		s.halted = false
+		s.haltReason = ""
 	case "nmi":
 		s.sys.CPU.NMI()
 	}
