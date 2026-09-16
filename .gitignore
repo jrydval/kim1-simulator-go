@@ -12,6 +12,11 @@
 # OS cruft
 .DS_Store
 
+# User-supplied KIM-1 ROM dumps — third-party copyrighted content, never
+# committed (unlike testdata/6502_functional_test.bin, which is the
+# author-published Dormann test binary — see testdata/README.md).
+testdata/6530-*.bin
+
 # Editor
 .vscode/*
 !.vscode/tasks.json
