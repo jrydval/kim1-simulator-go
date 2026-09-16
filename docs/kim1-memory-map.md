@@ -53,18 +53,27 @@ decoder. Its outputs select one of 10 lines:
 each keypad (row, column) position programmatically and reading what the
 monitor entered on the display):
 
-- Physical key → (row, column): row 0 columns 0-6 are hex digits 6,5,4,
-  3,2,1,0; row 1 columns 0-6 are D,C,B,A,9,8,7; row 2 is AD,GO,+,DA,PC,F,E.
-  See `internal/webui/static/app.js`'s `KEY_LAYOUT`, the single place this
-  mapping lives.
+- Electrical scan-matrix key → (row, column): row 0 columns 0-6 are hex
+  digits 6,5,4,3,2,1,0; row 1 columns 0-6 are D,C,B,A,9,8,7; row 2 is
+  PC,GO,+,DA,AD,F,E. See `internal/webui/static/app.js`'s `ELECTRICAL`
+  table, the single place this mapping lives. (AD and PC were initially
+  swapped — confirmed by testing that pressing AD after DA correctly
+  routes further digit entry back into the address field, which only
+  works with this assignment.)
 - Segment bit→letter assignment (bit0=a … bit6=g) matches the monitor
   ROM's own hex-digit segment table byte-for-byte once bit 7 is masked
   off, e.g. `$BF"&0x7F=0x3F` for "0" (segments a-f on, g off).
+- Physical (visual) key layout: 4 columns x 6 rows — GO/ST/RS/SST, then
+  AD/DA/PC/+, then hex digits C-F / 8-B / 4-7 / 0-3 — matches a
+  photographed real board (`internal/webui/static/app.js`'s
+  `VISUAL_LAYOUT`), which is unrelated to the electrical scan-matrix
+  layout above; the UI maps each legend from one to the other.
 
-**Not yet fully verified:** GO's exact "jump to committed address"
-sequencing (interaction between the AD and PC keys) behaved
-inconsistently in testing and needs more investigation; it doesn't affect
-the key-identity mapping above.
+**Not yet fully verified:** GO's exact "jump to address" sequencing
+(whether/how it uses an address committed via AD or PC) behaved
+inconsistently in testing — pressing GO didn't land on the address
+entered via AD in any sequence tried so far. Doesn't affect the
+key-identity mapping above, which is independently confirmed.
 
 ## Sources
 

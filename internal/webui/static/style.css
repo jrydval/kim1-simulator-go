@@ -68,43 +68,45 @@ main {
 .digit .seg-c { bottom: 3px; right: 0; width: 6px; height: 27px; }
 
 #controls {
-  display: flex;
-  gap: 16px;
-  align-items: flex-start;
   margin-bottom: 16px;
 }
 
+/* 4 columns x 6 rows, matching the real KIM-1's physical key layout
+   (GO/ST/RS/SST, then AD/DA/PC/+, then hex digits C-F/8-B/4-7/0-3). */
 #keypad {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 6px;
-  flex: 1;
+  max-width: 320px;
+  margin: 0 auto;
 }
 
-button.key, button.ctrl {
+button.key {
   background: var(--key);
   color: var(--text);
   border: 1px solid #000;
   border-radius: 4px;
-  padding: 10px 0;
+  padding: 14px 0;
   font: inherit;
   font-size: 0.95rem;
   cursor: pointer;
   user-select: none;
+  aspect-ratio: 1;
 }
 
-button.key:active, button.key.pressed, button.ctrl:active {
+button.key:active, button.key.pressed {
   background: var(--key-active);
 }
 
-#sidebuttons {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  width: 60px;
-}
+button.key.ctrl { background: #4a2a2a; }
 
-button.ctrl { background: #4a2a2a; }
+button.key.switch {
+  background: transparent;
+  border-style: dashed;
+  color: #666;
+  cursor: default;
+  font-size: 0.7rem;
+}
 
 #debug {
   background: var(--panel);

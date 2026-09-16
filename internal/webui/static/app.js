@@ -5,14 +5,33 @@
 // ROM's own hex segment table byte-for-byte, so it's very likely right.
 const SEGMENTS = ["a", "b", "c", "d", "e", "f", "g"];
 
-// 3 rows x 7 columns, matching kim1.Keypad's matrix. Verified empirically
-// against the real monitor ROM (pressing each (row,col) and reading what
-// it entered on the display) — not a guess. RS and ST are real KIM-1
-// controls wired directly to CPU RESET/NMI, not part of this matrix.
-const KEY_LAYOUT = [
-  ["6", "5", "4", "3", "2", "1", "0"],
-  ["D", "C", "B", "A", "9", "8", "7"],
-  ["AD", "GO", "+", "DA", "PC", "F", "E"],
+// Electrical scan-matrix position (row, col) for each key legend, matching
+// kim1.Keypad's 3x7 matrix — verified empirically against the real
+// monitor ROM (pressing each (row,col) and reading what it entered on the
+// display), including AD/PC, which were initially swapped: AD is the key
+// that, after DA, correctly routes further digit entry back into the
+// address field.
+const ELECTRICAL = {
+  "0": [0, 6], "1": [0, 5], "2": [0, 4], "3": [0, 3],
+  "4": [0, 2], "5": [0, 1], "6": [0, 0], "7": [1, 6],
+  "8": [1, 5], "9": [1, 4], "A": [1, 3], "B": [1, 2],
+  "C": [1, 1], "D": [1, 0], "E": [2, 6], "F": [2, 5],
+  "AD": [2, 4], "DA": [2, 3], "+": [2, 2], "GO": [2, 1], "PC": [2, 0],
+};
+
+// Visual layout: 4 columns x 6 rows, matching the physical arrangement on
+// a real KIM-1 board (photographed layout, not the electrical matrix
+// above). RS and ST sit in this same top row on real hardware but are
+// wired directly to CPU RESET/NMI rather than being scanned through the
+// keypad matrix; SST is a physical slide switch, not a momentary key —
+// shown for visual authenticity but not yet wired to anything.
+const VISUAL_LAYOUT = [
+  ["GO", "ST", "RS", "SST"],
+  ["AD", "DA", "PC", "+"],
+  ["C", "D", "E", "F"],
+  ["8", "9", "A", "B"],
+  ["4", "5", "6", "7"],
+  ["0", "1", "2", "3"],
 ];
 
 const displayEl = document.getElementById("display");
@@ -49,26 +68,39 @@ function sendMsg(msg) {
   }
 }
 
-for (let row = 0; row < KEY_LAYOUT.length; row++) {
-  for (let col = 0; col < KEY_LAYOUT[row].length; col++) {
-    const label = KEY_LAYOUT[row][col];
+for (const rowLabels of VISUAL_LAYOUT) {
+  for (const label of rowLabels) {
     const btn = document.createElement("button");
-    btn.className = "key";
     btn.textContent = label;
-    const press = (down) => (e) => {
-      e.preventDefault();
-      btn.classList.toggle("pressed", down);
-      sendMsg({ type: "key", row, col, down });
-    };
-    btn.addEventListener("pointerdown", press(true));
-    btn.addEventListener("pointerup", press(false));
-    btn.addEventListener("pointerleave", press(false));
+
+    if (label === "SST") {
+      btn.className = "key switch";
+      btn.disabled = true;
+      btn.title = "Single-step mode switch — not yet implemented";
+    } else if (label === "RS") {
+      btn.className = "key ctrl";
+      btn.title = "Reset (direct to CPU RESET, not part of the keypad matrix)";
+      btn.addEventListener("click", () => sendMsg({ type: "reset" }));
+    } else if (label === "ST") {
+      btn.className = "key ctrl";
+      btn.title = "Single-step (direct to CPU NMI, not part of the keypad matrix)";
+      btn.addEventListener("click", () => sendMsg({ type: "nmi" }));
+    } else {
+      btn.className = "key";
+      const [row, col] = ELECTRICAL[label];
+      const press = (down) => (e) => {
+        e.preventDefault();
+        btn.classList.toggle("pressed", down);
+        sendMsg({ type: "key", row, col, down });
+      };
+      btn.addEventListener("pointerdown", press(true));
+      btn.addEventListener("pointerup", press(false));
+      btn.addEventListener("pointerleave", press(false));
+    }
+
     keypadEl.appendChild(btn);
   }
 }
-
-document.getElementById("btn-rs").addEventListener("click", () => sendMsg({ type: "reset" }));
-document.getElementById("btn-st").addEventListener("click", () => sendMsg({ type: "nmi" }));
 
 const connstate = document.getElementById("connstate");
 const hex = (v, digits) => v.toString(16).toUpperCase().padStart(digits, "0");
