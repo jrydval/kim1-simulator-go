@@ -232,7 +232,14 @@ func (s *Server) BroadcastLoop(ctx context.Context) {
 
 func (s *Server) broadcastState() {
 	s.mu.Lock()
-	instr := disassembleAtDisplayAddress(s.sys, s.sys.Display.Digits)
+	// Snapshot (rather than the raw shadow buffer) blanks any digit the
+	// monitor's multiplex loop has stopped refreshing — e.g. while the
+	// CPU is spinning in the user's own JMP loop rather than the
+	// monitor's idle loop — matching real hardware, where persistence of
+	// vision only sustains a digit's image as long as scanning actually
+	// continues. See kim1.Display.Snapshot.
+	digits := s.sys.Display.Snapshot(s.sys.CPU.Cycles)
+	instr := disassembleAtDisplayAddress(s.sys, digits)
 	msg := stateMsg{
 		Type:      "state",
 		A:         s.sys.CPU.A,
@@ -242,7 +249,7 @@ func (s *Server) broadcastState() {
 		PC:        s.sys.CPU.PC,
 		P:         s.sys.CPU.P,
 		Cycles:    s.sys.CPU.Cycles,
-		Digits:    s.sys.Display.Digits,
+		Digits:    digits,
 		Halted:    s.halted,
 		Error:     s.haltReason,
 		SST:       s.sys.SST,

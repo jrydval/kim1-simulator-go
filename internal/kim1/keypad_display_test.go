@@ -84,6 +84,43 @@ func TestDisplayIgnoresNonDigitMuxLines(t *testing.T) {
 	}
 }
 
+func TestDisplaySnapshotBlanksStaleDigit(t *testing.T) {
+	d := NewDisplay()
+	d.Update(0, 0x3F, 1000) // digit 0 latched at cycle 1000
+
+	if got := d.Snapshot(1000 + staleAfterCycles); got[0] != 0x3F {
+		t.Fatalf("Snapshot at exactly the staleness threshold blanked digit 0, want still lit (%02X)", got[0])
+	}
+	if got := d.Snapshot(1000 + staleAfterCycles + 1); got[0] != 0 {
+		t.Fatalf("Snapshot(%d) = %02X, want 0 (digit 0 hasn't been refreshed in over staleAfterCycles)", 1000+staleAfterCycles+1, got[0])
+	}
+}
+
+func TestDisplaySnapshotKeepsFreshDigit(t *testing.T) {
+	d := NewDisplay()
+	d.Update(0, 0x3F, 1000)
+	d.Update(0, 0x3F, 1000+staleAfterCycles) // re-latched (e.g. next multiplex pass)
+
+	if got := d.Snapshot(1000 + staleAfterCycles + staleAfterCycles); got[0] != 0x3F {
+		t.Fatalf("Snapshot after a fresh re-latch blanked digit 0, want still lit (%02X)", got[0])
+	}
+}
+
+func TestDisplaySnapshotIsPerDigit(t *testing.T) {
+	d := NewDisplay()
+	d.Update(0, 0x3F, 0)                    // will go stale
+	d.Update(1, 0x06, staleAfterCycles+500) // refreshed recently relative to `now`
+
+	now := uint64(staleAfterCycles + 500)
+	got := d.Snapshot(now)
+	if got[0] != 0 {
+		t.Fatalf("Snapshot digit 0 = %02X, want 0 (stale)", got[0])
+	}
+	if got[1] != 0x06 {
+		t.Fatalf("Snapshot digit 1 = %02X, want 0x06 (fresh)", got[1])
+	}
+}
+
 func TestKeypadRowScanReadsPressedKey(t *testing.T) {
 	s := New()
 	s.Keypad.SetPressed(1, 3, true) // row 1, column 3 held

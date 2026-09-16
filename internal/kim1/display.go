@@ -16,7 +16,25 @@ package kim1
 // be corrected in one place without touching this model.
 type Display struct {
 	Digits [6]uint8
+
+	// lastUpdate[i] is the CPU cycle at which Digits[i] was last (re-)
+	// latched, used by Snapshot to detect a digit that's stopped being
+	// refreshed at all -- see Snapshot's doc comment.
+	lastUpdate [6]uint64
 }
+
+// staleAfterCycles is how long (in CPU cycles) a digit can go without
+// being re-latched before Snapshot blanks it. A real KIM-1 LED digit is
+// only ever physically lit for its ~680-cycle dwell within each ~4000-
+// cycle 6-digit multiplex pass (see webui.Server.RunCPU's doc comment);
+// it stays visible in between only via persistence of vision, which
+// depends on that pass continuing. This is a few multiplex passes' worth
+// of margin -- generous enough that normal scanning (or a slow SST step)
+// never flickers, but still short enough to blank within ~10ms (at the
+// default 1MHz) once the CPU truly stops touching the display, e.g.
+// stuck in the user's own tight JMP loop instead of the monitor's idle
+// loop.
+const staleAfterCycles = 10_000
 
 // NewDisplay returns a Display with all digits blank.
 func NewDisplay() *Display {
@@ -24,8 +42,8 @@ func NewDisplay() *Display {
 }
 
 // Update latches a new raw segment pattern for the given digit index
-// (0-5). A write of segments == 0 is deliberately ignored rather than
-// blanking the digit.
+// (0-5) at the given absolute CPU cycle. A write of segments == 0 is
+// deliberately ignored rather than blanking the digit.
 //
 // Confirmed against the real KIM-1 monitor ROM's boot-time display scan:
 // its digit loop selects a digit, writes the real segment pattern, holds
@@ -37,7 +55,7 @@ func NewDisplay() *Display {
 // Trade-off: a digit that's genuinely meant to go blank (e.g.
 // leading-zero suppression) keeps showing its last nonzero pattern
 // instead of clearing.
-func (d *Display) Update(digit int, segments uint8) {
+func (d *Display) Update(digit int, segments uint8, now uint64) {
 	if digit < 0 || digit >= len(d.Digits) {
 		return
 	}
@@ -46,4 +64,23 @@ func (d *Display) Update(digit int, segments uint8) {
 		return
 	}
 	d.Digits[digit] = segments
+	d.lastUpdate[digit] = now
+}
+
+// Snapshot returns Digits as of the given absolute CPU cycle, with any
+// digit blanked that hasn't been re-latched within staleAfterCycles.
+// Without this, a digit last written before the CPU stopped running the
+// monitor's multiplex loop (e.g. spinning in the user's own JMP loop, or
+// halted) would keep showing that stale pattern forever, since Update
+// only ever latches new nonzero patterns and never clears on its own —
+// correct while scanning is active (that's the whole point of the
+// shadow buffer), wrong once it's genuinely stopped.
+func (d *Display) Snapshot(now uint64) [6]uint8 {
+	var out [6]uint8
+	for i, seg := range d.Digits {
+		if now-d.lastUpdate[i] <= staleAfterCycles {
+			out[i] = seg
+		}
+	}
+	return out
 }

@@ -21,7 +21,12 @@ Implemented and tested (`go test ./...`):
   ports, 4-divisor interval timer).
 - `internal/kim1` — the full KIM-1 memory map and address decode wiring
   the CPU to system RAM and both RIOT chips, plus keypad/display
-  multiplexing logic (modeling the external 74145 decoder).
+  multiplexing logic (modeling the external 74145 decoder). The display
+  blanks a digit that's stopped being refreshed (`Display.Snapshot`) —
+  e.g. while the CPU is stuck in the user's own tight loop instead of the
+  monitor's idle loop — matching real hardware, where a digit only stays
+  visible for as long as persistence of vision is actually sustained by
+  ongoing multiplexing.
 - `internal/webui` + `cmd/kim1` — a Go web server exposing the running
   KIM-1's display and keypad over WebSocket, meant to be opened via VS
   Code's built-in Simple Browser panel, including a working SST

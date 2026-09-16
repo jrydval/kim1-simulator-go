@@ -30,7 +30,7 @@ func (s *System) refreshDisplay() {
 	}
 	digit := line - 4
 	segments := s.Kbd.PortA.OutputData() & s.Kbd.PortA.ReadDDR()
-	s.Display.Update(digit, segments)
+	s.Display.Update(digit, segments, s.CPU.Cycles)
 }
 
 // keypadColumnInput supplies Port A's input-mode bits. Bit 7 is always
