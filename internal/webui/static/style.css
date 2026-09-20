@@ -9,6 +9,7 @@
   --text: #ddd;
   --key: #3a3a3a;
   --key-active: #555;
+  --memrow-h: 20px;
 }
 
 * { box-sizing: border-box; }
@@ -343,7 +344,10 @@ button.key.switch.on {
   background: #111;
   border-radius: 4px;
   padding: 6px 8px;
-  max-height: 640px;
+  /* Show 27 of the page's 32 rows (5 fewer) so the panel lines up with
+     the neighbouring column; the last rows scroll into view. Row height
+     is fixed so the row count is exact. */
+  max-height: calc(27 * var(--memrow-h) + 12px);
   overflow-y: auto;
 }
 
@@ -351,7 +355,7 @@ button.key.switch.on {
   display: flex;
   align-items: center;
   gap: 6px;
-  line-height: 1.5;
+  height: var(--memrow-h);
 }
 
 .memaddr { color: #666; width: 3em; flex-shrink: 0; }
@@ -360,6 +364,7 @@ button.key.switch.on {
 
 .memcell {
   width: 1.9em;
+  height: 18px;
   padding: 0;
   border: 1px solid transparent;
   border-radius: 2px;
