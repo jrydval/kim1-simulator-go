@@ -247,6 +247,7 @@ function updateSwitches(key, value) {
 // registers, unpopulated space) come through as -1 and render "--".
 const MEM_COLS = 8;
 const MEM_PAGE = 256;
+const TRAIL_LEN = 10; // matches kim1.PCHistoryLen
 const memGridEl = document.getElementById("mem-grid");
 const memAddrEl = document.getElementById("mem-addr");
 const memRows = [];
@@ -350,6 +351,18 @@ function updateMem(msg) {
 
   const pcIndex = (msg.pc - base) & 0xFFFF;
 
+  // Execution trail: the last 10 executed instructions, newest first.
+  // Each byte of an instruction is lit in proportion to how recently it
+  // ran (rank 0 = brightest); where instructions overlap, the newest wins.
+  const trailRank = new Array(MEM_PAGE).fill(-1);
+  const trail = msg.trail || [];
+  for (let rank = trail.length - 1; rank >= 0; rank--) {
+    for (let k = 0; k < trail[rank].len; k++) {
+      const i = (trail[rank].addr + k - base) & 0xFFFF;
+      if (i < MEM_PAGE) trailRank[i] = rank;
+    }
+  }
+
   for (let r = 0; r < memRows.length; r++) {
     memRows[r].addr.textContent = hex((base + r * MEM_COLS) & 0xFFFF, 4);
     let ascii = "";
@@ -362,6 +375,12 @@ function updateMem(msg) {
       cell.classList.toggle("unviewable", !viewable);
       cell.classList.toggle("pc", pcIndex === i);
       cell.classList.toggle("changed", memChangedUntil[i] > now);
+      if (trailRank[i] >= 0) {
+        cell.classList.add("trail");
+        cell.style.setProperty("--trail", (0.6 * (1 - trailRank[i] / TRAIL_LEN)).toFixed(3));
+      } else {
+        cell.classList.remove("trail");
+      }
       if (document.activeElement !== cell) cell.value = viewable ? hex(v, 2) : "--";
       ascii += viewable && v >= 0x20 && v < 0x7F ? String.fromCharCode(v) : viewable ? "." : " ";
     }

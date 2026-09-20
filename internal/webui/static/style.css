@@ -378,6 +378,9 @@ button.key.switch.on {
 
 .memcell:focus { border-color: #ffcc66; outline: none; background: #222; }
 .memcell.unviewable { color: #444; }
+/* Recently executed bytes fade out with age; --trail is set per cell
+   (see updateMem). Listed before .pc/.changed so those still win. */
+.memcell.trail { background: rgba(255, 150, 40, var(--trail)); transition: background 150ms linear; }
 .memcell.pc { background: #1f3a5a; color: #9cf; }
 .memcell.changed { background: #5a3a12; color: #ffcc66; }
 

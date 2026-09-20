@@ -41,6 +41,13 @@ type System struct {
 	// vector at $17FA/$17FB to be set up by the user first, same as ST.
 	SST bool
 
+	// pcHist is a ring buffer of the addresses of the last PCHistoryLen
+	// instructions executed (opcode addresses, not interrupt responses),
+	// for debug views; see RecentPCs.
+	pcHist  [PCHistoryLen]uint16
+	pcHead  int
+	pcCount int
+
 	// AppSwitchA/AppSwitchB are the input levels presented to the App
 	// RIOT's Port A/B pins that are currently configured as inputs (DDR
 	// bit 0) -- standing in for the toggle switches a real KIM-1 owner
@@ -56,6 +63,10 @@ type System struct {
 	// interoperability issues.
 	DebugIO func(chip string, offset uint16, v uint8)
 }
+
+// PCHistoryLen is how many recently executed instruction addresses
+// System remembers.
+const PCHistoryLen = 10
 
 // defaultTTYCyclesPerBit is the bit period (in emulated 1MHz CPU cycles)
 // TTY presents to the monitor ROM's auto-baud calibration, chosen for a
@@ -140,6 +151,7 @@ func (s *System) LoadKbdROM(path string) error {
 // leftover (or zero) delay was in RAM and run far too fast to decode.
 func (s *System) Reset() {
 	s.CPU.Reset()
+	s.pcCount = 0
 	s.TTY.Reset()
 	if s.TTYSelect {
 		s.TTY.Send(0x7F)
@@ -156,6 +168,14 @@ func (s *System) Step() int {
 	s.App.TickTimer(cycles)
 	s.Kbd.TickTimer(cycles)
 
+	if !s.CPU.WasInterrupt() {
+		s.pcHist[s.pcHead] = startPC
+		s.pcHead = (s.pcHead + 1) % PCHistoryLen
+		if s.pcCount < PCHistoryLen {
+			s.pcCount++
+		}
+	}
+
 	if s.SST && startPC < appROMStart && opcode != 0x00 && !s.CPU.WasInterrupt() {
 		// Just executed a normal instruction fetched from outside ROM
 		// (not BRK, which already enters the interrupt handler on its
@@ -165,6 +185,17 @@ func (s *System) Step() int {
 		s.CPU.NMI()
 	}
 	return cycles
+}
+
+// RecentPCs returns the addresses of the most recently executed
+// instructions, newest first (at most PCHistoryLen). A loop shows up as
+// repeated addresses, since this records every executed instruction.
+func (s *System) RecentPCs() []uint16 {
+	out := make([]uint16, s.pcCount)
+	for i := range out {
+		out[i] = s.pcHist[(s.pcHead-1-i+2*PCHistoryLen)%PCHistoryLen]
+	}
+	return out
 }
 
 // Read implements bus.Bus.

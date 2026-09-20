@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"6502/internal/cpu"
 	"6502/internal/kim1"
 )
 
@@ -274,6 +275,7 @@ func (s *Server) broadcastState() {
 		AppSwitchB: s.sys.AppSwitchB,
 		MemAddr:    s.memViewAddr,
 		Mem:        s.memWindow(),
+		Trail:      s.trail(),
 	}
 	s.mu.Unlock()
 
@@ -298,6 +300,25 @@ func (s *Server) memWindow() []int {
 		} else {
 			out[i] = -1
 		}
+	}
+	return out
+}
+
+// peekBus adapts System.Peek to bus.Bus for read-only debug use, so
+// disassembling never triggers I/O register read side effects.
+type peekBus struct{ sys *kim1.System }
+
+func (b peekBus) Read(addr uint16) uint8 { v, _ := b.sys.Peek(addr); return v }
+func (b peekBus) Write(uint16, uint8)    {}
+
+// trail returns the most recently executed instructions, newest first,
+// each with its byte length. Callers must hold mu.
+func (s *Server) trail() []trailPC {
+	pcs := s.sys.RecentPCs()
+	out := make([]trailPC, len(pcs))
+	for i, pc := range pcs {
+		_, n := cpu.Disassemble(peekBus{s.sys}, pc)
+		out[i] = trailPC{Addr: pc, Len: n}
 	}
 	return out
 }

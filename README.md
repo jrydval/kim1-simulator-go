@@ -44,7 +44,8 @@ Implemented and tested (`go test ./...`):
   below), and a memory viewer/editor (256-byte pages with an ASCII
   column; click a byte to edit it, changed bytes flash, the byte at the
   CPU's PC is highlighted, and PC/DISP buttons jump to the program
-  counter or the address on the KIM-1 display). RIOT I/O registers show
+  counter or the address on the KIM-1 display, and the last 10 executed
+  instructions are lit in orange, fading with age). RIOT I/O registers show
   as `--` since reading them has side effects (timer flags).
 
 The UI lays out as three columns — board (display + keypad), then

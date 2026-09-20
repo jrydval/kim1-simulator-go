@@ -33,6 +33,14 @@ type stateMsg struct {
 	AppSwitchB uint8     `json:"appSwitchB"`
 	MemAddr    uint16    `json:"memAddr"`
 	Mem        []int     `json:"mem"`
+	Trail      []trailPC `json:"trail"`
+}
+
+// trailPC is one recently executed instruction: its address and byte
+// length, so the memory viewer can light the whole instruction.
+type trailPC struct {
+	Addr uint16 `json:"addr"`
+	Len  int    `json:"len"`
 }
 
 // portState is one RIOT I/O port's current electrical state: Value is the

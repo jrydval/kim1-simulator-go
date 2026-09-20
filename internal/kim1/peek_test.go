@@ -26,3 +26,39 @@ func TestPeekIOWindowAndUnmappedAreNotOK(t *testing.T) {
 		}
 	}
 }
+
+func TestRecentPCsNewestFirstAndCapped(t *testing.T) {
+	s := New()
+	// A run of NOPs at $0200.
+	for i := 0; i < 20; i++ {
+		s.Write(uint16(0x0200+i), 0xEA)
+	}
+	s.CPU.PC = 0x0200
+	for i := 0; i < 3; i++ {
+		s.Step()
+	}
+	got := s.RecentPCs()
+	if len(got) != 3 || got[0] != 0x0202 || got[1] != 0x0201 || got[2] != 0x0200 {
+		t.Fatalf("RecentPCs after 3 NOPs = %04X, want [0202 0201 0200]", got)
+	}
+
+	for i := 0; i < 12; i++ {
+		s.Step()
+	}
+	got = s.RecentPCs()
+	if len(got) != PCHistoryLen || got[0] != 0x020E || got[PCHistoryLen-1] != 0x0205 {
+		t.Fatalf("RecentPCs after 15 NOPs = %04X, want 10 entries from 020E down to 0205", got)
+	}
+}
+
+func TestRecentPCsSkipsInterruptResponses(t *testing.T) {
+	s := New()
+	s.Write(0x0200, 0xEA)
+	s.CPU.PC = 0x0200
+	s.Step()
+	s.CPU.NMI()
+	s.Step() // services the NMI: not an executed instruction
+	if got := s.RecentPCs(); len(got) != 1 || got[0] != 0x0200 {
+		t.Fatalf("RecentPCs = %04X, want only [0200] (interrupt response isn't an instruction)", got)
+	}
+}
