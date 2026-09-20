@@ -9,47 +9,70 @@
 <main>
   <h1>KIM-1</h1>
 
-  <section id="display" aria-label="7-segment display"></section>
-
   <p id="haltbanner" hidden></p>
 
-  <section id="controls">
-    <div id="keypad" aria-label="hex keypad"></div>
-  </section>
+  <div id="layout">
+    <div class="col col-board">
+      <section id="display" aria-label="7-segment display"></section>
 
-  <section id="debug">
-    <table>
-      <tr><th>A</th><th>X</th><th>Y</th><th>SP</th><th>PC</th><th>P</th><th>Cycles</th></tr>
-      <tr>
-        <td id="reg-a">00</td>
-        <td id="reg-x">00</td>
-        <td id="reg-y">00</td>
-        <td id="reg-sp">00</td>
-        <td id="reg-pc">0000</td>
-        <td id="reg-p">00</td>
-        <td id="reg-cycles">0</td>
-      </tr>
-    </table>
-    <div id="flags"></div>
-    <p id="instr" title="Disassembly at the address shown on the display (not the CPU's own PC, which is almost always deep in idle monitor code)">-</p>
-    <p id="connstate">connecting…</p>
-  </section>
+      <section id="controls">
+        <div id="keypad" aria-label="hex keypad"></div>
+      </section>
+    </div>
 
-  <section id="ioports" aria-label="RIOT I/O ports">
-    <h2>6530 RIOT I/O Ports <span class="legend">blue = input · red = output</span></h2>
-    <div id="ioports-grid"></div>
-  </section>
+    <div class="col col-debug">
+      <section id="debug">
+        <table>
+          <tr><th>A</th><th>X</th><th>Y</th><th>SP</th><th>PC</th><th>P</th><th>Cycles</th></tr>
+          <tr>
+            <td id="reg-a">00</td>
+            <td id="reg-x">00</td>
+            <td id="reg-y">00</td>
+            <td id="reg-sp">00</td>
+            <td id="reg-pc">0000</td>
+            <td id="reg-p">00</td>
+            <td id="reg-cycles">0</td>
+          </tr>
+        </table>
+        <div id="flags"></div>
+        <p id="instr" title="Disassembly at the address shown on the display (not the CPU's own PC, which is almost always deep in idle monitor code)">-</p>
+        <p id="connstate">connecting…</p>
+      </section>
 
-  <section id="tty" aria-label="TTY terminal">
-    <h2>
-      TTY
-      <button id="tty-switch" class="key switch" title="TTY/keyboard mode switch: on = boot into TTY command mode instead of keypad/display mode (Port A bit 0). Turn on, then press RS -- the terminal auto-sends RUBOUT on reset to trigger the monitor's baud calibration.">TTY/KB</button>
-    </h2>
-    <pre id="tty-out"></pre>
-    <form id="tty-form">
-      <input id="tty-in" type="text" autocomplete="off" placeholder="type and press Enter to send a line (as CR)">
-    </form>
-  </section>
+      <section id="ioports" aria-label="RIOT I/O ports">
+        <h2>6530 RIOT I/O Ports <span class="legend">blue = input · red = output</span></h2>
+        <div id="ioports-grid"></div>
+      </section>
+
+      <section id="tty" aria-label="TTY terminal">
+        <h2>
+          TTY
+          <button id="tty-switch" class="key switch" title="TTY/keyboard mode switch: on = boot into TTY command mode instead of keypad/display mode (Port A bit 0). Turn on, then press RS -- the terminal auto-sends RUBOUT on reset to trigger the monitor's baud calibration.">TTY/KB</button>
+        </h2>
+        <pre id="tty-out"></pre>
+        <form id="tty-form">
+          <input id="tty-in" type="text" autocomplete="off" placeholder="type and press Enter to send a line (as CR)">
+        </form>
+      </section>
+    </div>
+
+    <div class="col col-mem">
+      <section id="mem" aria-label="memory viewer and editor">
+        <h2>
+          Memory
+          <span class="legend">click a byte to edit · Enter commits</span>
+        </h2>
+        <div id="mem-nav">
+          <button id="mem-prev" class="memnav" title="previous page">&lt;</button>
+          <input id="mem-addr" type="text" maxlength="4" spellcheck="false" autocomplete="off" title="page address (hex); rounded down to a 256-byte page">
+          <button id="mem-next" class="memnav" title="next page">&gt;</button>
+          <button id="mem-pc" class="memnav" title="jump to the CPU's PC">PC</button>
+          <button id="mem-disp" class="memnav" title="jump to the address on the KIM-1 display">DISP</button>
+        </div>
+        <div id="mem-grid"></div>
+      </section>
+    </div>
+  </div>
 </main>
 <script src="app.js"></script>
 </body>

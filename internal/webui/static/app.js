@@ -239,6 +239,136 @@ function updateSwitches(key, value) {
   }
 }
 
+// Memory viewer/editor: one 256-byte page (32 rows x 8 bytes) served by
+// the server, which owns the current page address so it survives
+// reloads. Cells are always <input>s so they can be edited in place; a
+// cell that has focus is left alone by the 30Hz refresh so typing isn't
+// clobbered. Addresses the server can't show side-effect-free (RIOT I/O
+// registers, unpopulated space) come through as -1 and render "--".
+const MEM_COLS = 8;
+const MEM_PAGE = 256;
+const memGridEl = document.getElementById("mem-grid");
+const memAddrEl = document.getElementById("mem-addr");
+const memRows = [];
+const memCells = [];
+const memChangedUntil = new Array(MEM_PAGE).fill(0);
+let memPrev = null;
+let memPrevBase = -1;
+let lastState = null;
+
+for (let r = 0; r < MEM_PAGE / MEM_COLS; r++) {
+  const row = document.createElement("div");
+  row.className = "memrow";
+  const addr = document.createElement("span");
+  addr.className = "memaddr";
+  row.appendChild(addr);
+  const cells = document.createElement("div");
+  cells.className = "memcells";
+  for (let c = 0; c < MEM_COLS; c++) {
+    const i = r * MEM_COLS + c;
+    const cell = document.createElement("input");
+    cell.className = "memcell";
+    cell.maxLength = 2;
+    cell.spellcheck = false;
+    cell.autocomplete = "off";
+    cell.addEventListener("focus", () => cell.select());
+    cell.addEventListener("input", () => {
+      cell.value = cell.value.replace(/[^0-9a-fA-F]/g, "");
+    });
+    cell.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        const val = parseInt(cell.value, 16);
+        if (!Number.isNaN(val) && lastState) {
+          sendMsg({ type: "memwrite", addr: (lastState.memAddr + i) & 0xFFFF, val });
+        }
+        cell.blur();
+      } else if (e.key === "Escape") {
+        cell.blur();
+      }
+    });
+    cells.appendChild(cell);
+    memCells[i] = cell;
+  }
+  row.appendChild(cells);
+  const ascii = document.createElement("span");
+  ascii.className = "memascii";
+  row.appendChild(ascii);
+  memGridEl.appendChild(row);
+  memRows.push({ addr, ascii });
+}
+
+function memGoto(addr) {
+  sendMsg({ type: "memview", addr: addr & 0xFFFF });
+}
+
+document.getElementById("mem-prev").addEventListener("click", () => {
+  if (lastState) memGoto(lastState.memAddr - MEM_PAGE);
+});
+document.getElementById("mem-next").addEventListener("click", () => {
+  if (lastState) memGoto(lastState.memAddr + MEM_PAGE);
+});
+document.getElementById("mem-pc").addEventListener("click", () => {
+  if (lastState) memGoto(lastState.pc);
+});
+document.getElementById("mem-disp").addEventListener("click", () => {
+  // The server already decodes the address on the KIM-1's own display
+  // for the disassembly line ("0200:  LDA #$42"); reuse that.
+  const m = lastState && /^([0-9A-F]{4}):/.exec(lastState.instr);
+  if (m) memGoto(parseInt(m[1], 16));
+});
+memAddrEl.addEventListener("input", () => {
+  memAddrEl.value = memAddrEl.value.replace(/[^0-9a-fA-F]/g, "");
+});
+memAddrEl.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    const a = parseInt(memAddrEl.value, 16);
+    if (!Number.isNaN(a)) memGoto(a);
+    memAddrEl.blur();
+  } else if (e.key === "Escape") {
+    memAddrEl.blur();
+  }
+});
+
+function updateMem(msg) {
+  lastState = msg;
+  const base = msg.memAddr;
+  const now = performance.now();
+
+  if (document.activeElement !== memAddrEl) memAddrEl.value = hex(base, 4);
+
+  // Flash bytes that changed since the previous frame (only comparable
+  // while still looking at the same page).
+  if (memPrev && memPrevBase === base) {
+    for (let i = 0; i < MEM_PAGE; i++) {
+      if (msg.mem[i] !== memPrev[i]) memChangedUntil[i] = now + 700;
+    }
+  } else {
+    memChangedUntil.fill(0);
+  }
+  memPrev = msg.mem;
+  memPrevBase = base;
+
+  const pcIndex = (msg.pc - base) & 0xFFFF;
+
+  for (let r = 0; r < memRows.length; r++) {
+    memRows[r].addr.textContent = hex((base + r * MEM_COLS) & 0xFFFF, 4);
+    let ascii = "";
+    for (let c = 0; c < MEM_COLS; c++) {
+      const i = r * MEM_COLS + c;
+      const v = msg.mem[i];
+      const cell = memCells[i];
+      const viewable = v >= 0;
+      cell.readOnly = !viewable;
+      cell.classList.toggle("unviewable", !viewable);
+      cell.classList.toggle("pc", pcIndex === i);
+      cell.classList.toggle("changed", memChangedUntil[i] > now);
+      if (document.activeElement !== cell) cell.value = viewable ? hex(v, 2) : "--";
+      ascii += viewable && v >= 0x20 && v < 0x7F ? String.fromCharCode(v) : viewable ? "." : " ";
+    }
+    memRows[r].ascii.textContent = ascii;
+  }
+}
+
 function connect() {
   const proto = location.protocol === "https:" ? "wss:" : "ws:";
   socket = new WebSocket(proto + "//" + location.host + "/ws");
@@ -271,6 +401,7 @@ function connect() {
     updatePort("kbdPB", msg.kbdPB);
     updateSwitches("appPA", msg.appSwitchA);
     updateSwitches("appPB", msg.appSwitchB);
+    updateMem(msg);
 
     if (sstBtn) sstBtn.classList.toggle("on", msg.sst);
     ttySwitchBtn.classList.toggle("on", msg.ttySelect);

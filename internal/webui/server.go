@@ -55,7 +55,14 @@ type Server struct {
 	// already held) — both under the same lock, so run ordering always
 	// matches actual send/receive order.
 	ttyLog []ttyRun
+
+	// memViewAddr is the start of the memory window shown in the hex
+	// viewer, shared by all clients (this is a single-user local tool).
+	memViewAddr uint16
 }
+
+// memViewBytes is the size of the hex viewer's window: one 256-byte page.
+const memViewBytes = 256
 
 // ttyRun is one contiguous stretch of the TTY transcript, either typed
 // by the user (Sent) or decoded from the CPU's TTY output.
@@ -265,6 +272,8 @@ func (s *Server) broadcastState() {
 		TTYLog:     append([]ttyRun(nil), s.ttyLog...),
 		AppSwitchA: s.sys.AppSwitchA,
 		AppSwitchB: s.sys.AppSwitchB,
+		MemAddr:    s.memViewAddr,
+		Mem:        s.memWindow(),
 	}
 	s.mu.Unlock()
 
@@ -276,4 +285,19 @@ func (s *Server) broadcastState() {
 		default: // slow client: drop this frame rather than block the broadcaster
 		}
 	}
+}
+
+// memWindow returns memViewBytes bytes starting at memViewAddr via
+// side-effect-free Peek, with -1 for addresses that can't be shown (I/O
+// registers, unpopulated space). Callers must hold mu.
+func (s *Server) memWindow() []int {
+	out := make([]int, memViewBytes)
+	for i := range out {
+		if v, ok := s.sys.Peek(s.memViewAddr + uint16(i)); ok {
+			out[i] = int(v)
+		} else {
+			out[i] = -1
+		}
+	}
+	return out
 }

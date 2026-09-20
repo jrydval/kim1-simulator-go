@@ -29,9 +29,30 @@ h1 {
 }
 
 main {
-  max-width: 640px;
+  max-width: 1400px;
   margin: 0 auto;
 }
+
+/* Three columns (board | registers + I/O + terminal | memory) that wrap
+   into a single stack as the viewport narrows. */
+#layout {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+.col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.col-board { flex: 0 1 340px; }
+.col-debug { flex: 1 1 420px; max-width: 540px; }
+.col-mem   { flex: 0 1 400px; }
 
 #display {
   display: flex;
@@ -40,7 +61,6 @@ main {
   background: var(--panel);
   border-radius: 8px;
   padding: 20px;
-  margin-bottom: 16px;
 }
 
 /* Seven-segment digit. Bit->segment mapping (bit0=a .. bit6=g) is a
@@ -74,10 +94,6 @@ main {
 .digit .seg-b { top: 3px;    right: 0; width: 6px; height: 27px; }
 .digit .seg-e { bottom: 3px; left: 0;  width: 6px; height: 27px; }
 .digit .seg-c { bottom: 3px; right: 0; width: 6px; height: 27px; }
-
-#controls {
-  margin-bottom: 16px;
-}
 
 /* 4 columns x 6 rows, matching the real KIM-1's physical key layout
    (GO/ST/RS/SST, then AD/DA/PC/+, then hex digits C-F/8-B/4-7/0-3). */
@@ -141,7 +157,6 @@ button.key.switch.on {
   background: var(--panel);
   border-radius: 8px;
   padding: 12px 16px;
-  margin-top: 16px;
   font-size: 0.85rem;
 }
 
@@ -229,7 +244,6 @@ button.key.switch.on {
   background: var(--panel);
   border-radius: 8px;
   padding: 12px 16px;
-  margin-top: 16px;
   font-size: 0.85rem;
 }
 
@@ -278,6 +292,91 @@ button.key.switch.on {
   font: inherit;
   font-size: 0.85rem;
 }
+
+#mem {
+  background: var(--panel);
+  border-radius: 8px;
+  padding: 12px 16px;
+  font-size: 0.85rem;
+}
+
+#mem h2 {
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  color: #888;
+  font-weight: normal;
+  margin: 0 0 10px;
+}
+
+#mem h2 .legend { letter-spacing: normal; color: #666; font-size: 0.9em; }
+
+#mem-nav { display: flex; gap: 6px; margin-bottom: 8px; }
+
+#mem-nav button.memnav {
+  background: var(--key);
+  color: var(--text);
+  border: 1px solid #000;
+  border-radius: 4px;
+  padding: 3px 8px;
+  font: inherit;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+#mem-nav button.memnav:active { background: var(--key-active); }
+
+#mem-addr {
+  width: 5em;
+  background: #111;
+  border: 1px solid #333;
+  border-radius: 4px;
+  padding: 3px 6px;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.85rem;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+/* 32 rows x 8 bytes: address, 8 editable hex cells, ASCII. */
+#mem-grid {
+  background: #111;
+  border-radius: 4px;
+  padding: 6px 8px;
+  max-height: 640px;
+  overflow-y: auto;
+}
+
+.memrow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  line-height: 1.5;
+}
+
+.memaddr { color: #666; width: 3em; flex-shrink: 0; }
+
+.memcells { display: flex; gap: 2px; }
+
+.memcell {
+  width: 1.9em;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.85rem;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.memcell:focus { border-color: #ffcc66; outline: none; background: #222; }
+.memcell.unviewable { color: #444; }
+.memcell.pc { background: #1f3a5a; color: #9cf; }
+.memcell.changed { background: #5a3a12; color: #ffcc66; }
+
+.memascii { color: #777; margin-left: 4px; white-space: pre; }
 
 #haltbanner {
   background: #4a1f1f;

@@ -31,6 +31,8 @@ type stateMsg struct {
 	TTYLog     []ttyRun  `json:"ttyLog"`
 	AppSwitchA uint8     `json:"appSwitchA"`
 	AppSwitchB uint8     `json:"appSwitchB"`
+	MemAddr    uint16    `json:"memAddr"`
+	Mem        []int     `json:"mem"`
 }
 
 // portState is one RIOT I/O port's current electrical state: Value is the
@@ -49,13 +51,15 @@ type portState struct {
 // position, a line of text typed into the TTY terminal panel, or an App
 // RIOT input-switch position.
 type clientMsg struct {
-	Type string `json:"type"` // "key" | "reset" | "nmi" | "sst" | "ttyselect" | "ttysend" | "appswitch"
+	Type string `json:"type"` // "key" | "reset" | "nmi" | "sst" | "ttyselect" | "ttysend" | "appswitch" | "memview" | "memwrite"
 	Row  int    `json:"row"`
 	Col  int    `json:"col"`
 	Down bool   `json:"down"`
 	Text string `json:"text"`
 	Port string `json:"port"` // "appswitch": "A" or "B"
 	Bit  int    `json:"bit"`  // "appswitch": 0-7
+	Addr int    `json:"addr"` // "memview" / "memwrite"
+	Val  int    `json:"val"`  // "memwrite"
 }
 
 type client struct {
@@ -126,6 +130,13 @@ func (s *Server) handleClientMsg(msg clientMsg) {
 	case "ttysend":
 		s.sys.TTY.Send([]byte(msg.Text)...)
 		s.appendTTY(msg.Text, true)
+	case "memview":
+		s.memViewAddr = uint16(msg.Addr) &^ (memViewBytes - 1)
+	case "memwrite":
+		addr := uint16(msg.Addr)
+		if _, ok := s.sys.Peek(addr); ok {
+			s.sys.Write(addr, uint8(msg.Val))
+		}
 	case "appswitch":
 		if len(msg.Port) == 1 {
 			s.sys.SetAppSwitch(msg.Port[0], msg.Bit, msg.Down)

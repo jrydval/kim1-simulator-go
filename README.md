@@ -40,8 +40,16 @@ Implemented and tested (`go test ./...`):
   with a row of switches under the App RIOT's (the real KIM-1's user
   application connector) pins to drive whichever are currently
   configured as inputs, standing in for hobbyist-wired toggle switches
-  since nothing else drives those pins — and a TTY terminal panel (see
-  below).
+  since nothing else drives those pins — a TTY terminal panel (see
+  below), and a memory viewer/editor (256-byte pages with an ASCII
+  column; click a byte to edit it, changed bytes flash, the byte at the
+  CPU's PC is highlighted, and PC/DISP buttons jump to the program
+  counter or the address on the KIM-1 display). RIOT I/O registers show
+  as `--` since reading them has side effects (timer flags).
+
+The UI lays out as three columns — board (display + keypad), then
+registers + I/O + terminal, then memory — and stacks them as the window
+narrows.
 
 Not yet implemented: the cassette interface, breakpoints, and state
 snapshot save/restore.

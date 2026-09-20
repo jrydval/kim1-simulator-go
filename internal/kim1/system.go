@@ -194,6 +194,21 @@ func (s *System) Read(addr uint16) uint8 {
 	}
 }
 
+// Peek reads addr without any side effects, for debug views. ok is false
+// for addresses whose read has no meaningful side-effect-free value: the
+// RIOT I/O register windows (reading a timer register clears its flag)
+// and unpopulated space.
+func (s *System) Peek(addr uint16) (v uint8, ok bool) {
+	switch {
+	case addr <= ramEnd,
+		addr >= appRAMStart && addr <= kbdROMEnd,
+		addr >= hwVectorStart:
+		return s.Read(addr), true
+	default:
+		return 0, false
+	}
+}
+
 // Write implements bus.Bus. Writes into ROM windows (and the aliased
 // vector region, and any unmapped address) are no-ops.
 func (s *System) Write(addr uint16, v uint8) {
