@@ -1,6 +1,6 @@
 # KIM-1 Simulator in Golang
 
-<img width="596" height="919" alt="image" src="https://github.com/user-attachments/assets/3dfb8325-6b78-4efe-9dab-e8d27ebf3c0d" />
+<img width="932" height="476" alt="KIM-1 simulator web UI" src="docs/kim1-simulator.png" />
 
 
 A cycle-accurate MOS 6502 CPU emulator with a full simulation of the
