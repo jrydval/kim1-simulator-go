@@ -17,6 +17,11 @@
 # author-published Dormann test binary — see testdata/README.md).
 testdata/6530-*.bin
 
+# Third-party KIM-1 software (paper-tape/hex program images) dropped into
+# testdata/ for local testing — same reasoning as the ROM dumps above.
+testdata/*.ptp
+testdata/*.hex
+
 # Editor
 .vscode/*
 !.vscode/tasks.json

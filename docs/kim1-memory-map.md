@@ -109,6 +109,23 @@ source listing (brainwagon/kim-1):
 - End-to-end confirmed against the real ROM: after the above bootstrap,
   the decoded TTY output was exactly `"\r\n...KIM\r\n...0000 00 "` — the
   monitor's real boot banner and address/data prompt.
+- Third-party TTY software can send bytes with the high bit set as
+  non-printing filler, not just the monitor's own (always <$80) text.
+  Confirmed against TinyBASIC-2000 (loaded via Load PAP to $2000 with
+  expansion RAM enabled, entered via the TTY monitor's `G` command):
+  raw captured bytes around its startup prompt were
+  `0D FF FF 0A FF 3A 91` (traced bit-by-bit against the actual Port B
+  write log, at the same ~3333-cycle/bit period the monitor itself
+  uses — not a baud mismatch). Masking bit 7 turns `$FF` into RUBOUT
+  (`$7F`) and `$91` into DC1 (`$11`), both non-printing ASCII control
+  codes — i.e. this is TinyBASIC padding its output for a mechanical
+  teletype's carriage-return timing, using the classic RUBOUT-as-filler
+  convention (the same reason the boot bootstrap above sends one), just
+  with the top bit set. A real teletype wouldn't print anything visible
+  for these either, so the terminal panel masks bit 7 and drops
+  non-printing control codes before rendering (`app.js`'s
+  `cleanTTYText`) rather than showing raw mojibake; the underlying
+  `ttyLog` byte stream itself is untouched.
 
 ## PAP paper-tape format and the memory viewer's Load PAP/Load HEX
 

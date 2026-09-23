@@ -82,12 +82,34 @@ ttySwitchBtn.addEventListener("click", () => {
 // input at all. The server tags each transcript run as sent (typed by
 // you) or received (decoded from the CPU's TTY output); render them in
 // different colors so the two are distinguishable at a glance.
+//
+// Each character in a run corresponds 1:1 to one raw TTY byte (see
+// server.go's onTTYByte). Some real KIM-1 software -- confirmed against
+// TinyBASIC-2000 -- pads its output with filler bytes for a mechanical
+// teletype's carriage-return timing, sent with the high bit set over an
+// otherwise-ordinary ASCII control code (e.g. $FF = RUBOUT $7F, $91 =
+// DC1 $11). A real teletype prints nothing visible for those, so mask
+// the high bit before interpreting each byte and drop non-printing
+// control codes (keeping CR/LF/TAB) rather than showing raw mojibake.
+function ttyDisplayChar(ch) {
+  const code = ch.charCodeAt(0) & 0x7f;
+  if (code === 0x0d || code === 0x0a || code === 0x09) return ch;
+  if (code < 0x20 || code === 0x7f) return "";
+  return String.fromCharCode(code);
+}
+
+function cleanTTYText(text) {
+  let out = "";
+  for (const ch of text) out += ttyDisplayChar(ch);
+  return out;
+}
+
 function renderTTY(runs) {
   ttyOutEl.textContent = "";
   for (const run of runs) {
     const span = document.createElement("span");
     span.className = run.sent ? "tty-sent" : "tty-recv";
-    span.textContent = run.text;
+    span.textContent = cleanTTYText(run.text);
     ttyOutEl.appendChild(span);
   }
   ttyOutEl.scrollTop = ttyOutEl.scrollHeight;
