@@ -23,9 +23,16 @@ when the file isn't present.
 
 ## KIM-1 ROM images (not included)
 
-The two KIM-1 6530 RIOT mask-ROM dumps (historically labelled around
-6530-002 and 6530-003, 1KB each, loaded at `$1800` and `$1C00`) are
-third-party copyrighted content and are **not** included in this
-repository. To run the full `cmd/kim1` system you must supply your own
-dumps (widely available among retrocomputing/preservation hobbyists) via
-the `-rom-u2` / `-rom-u3` flags.
+The two KIM-1 6530 RIOT mask-ROM dumps (1KB each) are third-party
+copyrighted content and are **not** included in this repository. To run
+the full `cmd/kim1` system you must supply your own dumps via the
+`-rom-app` / `-rom-kbd` flags:
+
+- `-rom-app`: the 6530-003 (application connector RIOT), loaded at
+  `$1800`
+- `-rom-kbd`: the 6530-002 (keypad/display/TTY/cassette RIOT), loaded at
+  `$1C00`
+
+See [retro.hansotten.nl's KIM-1 ROMs
+page](http://retro.hansotten.nl/6502-sbc/kim-1-manuals-and-software/kim_1-roms/)
+for background on these ROM images and where to find dumps.
