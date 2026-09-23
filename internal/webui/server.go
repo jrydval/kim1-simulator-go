@@ -289,6 +289,39 @@ func (s *Server) broadcastState() {
 	}
 }
 
+// handleLoad parses text as a PAP or Intel HEX image and writes it
+// straight into system memory, bypassing the TTY entirely (unlike the
+// existing "paste into the terminal after L" workflow, this is meant to
+// be instant regardless of the emulated baud rate). Callers must already
+// hold mu.
+func (s *Server) handleLoad(format, text string) *loadResultMsg {
+	var records []kim1.MemRecord
+	var err error
+	switch format {
+	case "pap":
+		records, err = kim1.ParsePAP(text)
+	case "hex":
+		records, err = kim1.ParseIntelHex(text)
+	default:
+		err = fmt.Errorf("unknown format %q", format)
+	}
+	if err != nil {
+		return &loadResultMsg{Type: "loadresult", Message: err.Error()}
+	}
+
+	stats := s.sys.LoadRecords(records)
+	if stats.Written == 0 {
+		return &loadResultMsg{Type: "loadresult", Message: "nothing loaded: file was empty, or every address it targets is unmapped"}
+	}
+
+	s.memViewAddr = stats.MinAddr &^ (memViewBytes - 1)
+	msg := fmt.Sprintf("loaded %d bytes at $%04X-$%04X", stats.Written, stats.MinAddr, stats.MaxAddr)
+	if stats.Skipped > 0 {
+		msg += fmt.Sprintf(" (%d bytes skipped: unmapped address)", stats.Skipped)
+	}
+	return &loadResultMsg{Type: "loadresult", OK: true, Message: msg}
+}
+
 // memWindow returns memViewBytes bytes starting at memViewAddr via
 // side-effect-free Peek, with -1 for addresses that can't be shown (I/O
 // registers, unpopulated space). Callers must hold mu.

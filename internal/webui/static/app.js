@@ -330,6 +330,39 @@ memAddrEl.addEventListener("keydown", (e) => {
   }
 });
 
+// Load PAP/Load HEX: read a local file and send its raw text to the
+// server, which parses it (kim1.ParsePAP / kim1.ParseIntelHex) and
+// writes it straight into memory -- unlike pasting a .pap into the TTY
+// panel (which goes through the real, slow, simulated-baud-rate LOAD
+// command), this is instant and works regardless of the TTY/KB switch.
+const memLoadStatusEl = document.getElementById("mem-load-status");
+let memLoadStatusTimer = null;
+
+function showMemLoadStatus(ok, text) {
+  memLoadStatusEl.textContent = text;
+  memLoadStatusEl.classList.toggle("ok", ok);
+  memLoadStatusEl.classList.toggle("error", !ok);
+  memLoadStatusEl.hidden = false;
+  clearTimeout(memLoadStatusTimer);
+  memLoadStatusTimer = setTimeout(() => { memLoadStatusEl.hidden = true; }, 8000);
+}
+
+function wireMemLoadButton(btnId, fileId, format) {
+  const btn = document.getElementById(btnId);
+  const fileInput = document.getElementById(fileId);
+  btn.addEventListener("click", () => fileInput.click());
+  fileInput.addEventListener("change", () => {
+    const file = fileInput.files[0];
+    fileInput.value = ""; // allow reselecting the same file next time
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => sendMsg({ type: "load", format, text: String(reader.result) });
+    reader.readAsText(file);
+  });
+}
+wireMemLoadButton("mem-load-pap", "mem-load-pap-file", "pap");
+wireMemLoadButton("mem-load-hex", "mem-load-hex-file", "hex");
+
 function updateMem(msg) {
   lastState = msg;
   const base = msg.memAddr;
@@ -401,6 +434,10 @@ function connect() {
 
   socket.onmessage = (ev) => {
     const msg = JSON.parse(ev.data);
+    if (msg.type === "loadresult") {
+      showMemLoadStatus(msg.ok, msg.message);
+      return;
+    }
     if (msg.type !== "state") return;
 
     for (let i = 0; i < 6; i++) setDigit(i, msg.digits[i]);

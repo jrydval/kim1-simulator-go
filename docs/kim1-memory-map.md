@@ -110,6 +110,49 @@ source listing (brainwagon/kim-1):
   the decoded TTY output was exactly `"\r\n...KIM\r\n...0000 00 "` — the
   monitor's real boot banner and address/data prompt.
 
+## PAP paper-tape format and the memory viewer's Load PAP/Load HEX
+
+The **Load PAP**/**Load HEX** buttons (`internal/kim1/loader.go`) parse a
+file and write it straight into memory via `System.Write`, gated by
+`Peek` the same way the memory editor's manual byte edits are (so a
+record can't accidentally land on a RIOT I/O register and toggle a pin
+or reset a timer). This is a separate, instant path from pasting a
+`.pap` into the TTY panel, which instead feeds it through the real
+simulated serial link and the monitor's own `L` command at whatever baud
+rate `TTY.CyclesPerBit` is set to.
+
+KIM-1 PAP records are `;LLAAAADD..DDCCCC`: `LL` = data byte count,
+`AAAA` = address (high byte then low byte), `DD..DD` = `LL` data bytes,
+`CCCC` = a 16-bit checksum. A record with `LL=$00` is the tape's
+terminator.
+
+**Checksum algorithm verified by disassembling the real App ROM's DUMP
+routine** (`$1800`-ish) and Kbd ROM's LOAD routine: the running-checksum
+subroutine at `$194C` is
+
+```
+TAY
+CLC
+ADC $17E7   ; checksum low byte
+STA $17E7
+LDA $17E8   ; checksum high byte
+ADC #$00
+STA $17E8
+TYA
+RTS
+```
+
+— an ordinary 16-bit sum with carry propagation into the high byte,
+called once per decoded byte. Since addition is commutative, this means
+`CCCC` is simply `(LL + addrHi + addrLo + sum(data)) mod 65536`
+regardless of the order those bytes are added in.
+
+Intel HEX (`Load HEX`) is a separate, standard, non-KIM-1-specific
+format (`:LLAAAATTDD..DDCC`, two's-complement checksum) included because
+it's a common assembler/linker output format; only data (`00`) and
+end-of-file (`01`) record types are handled, since the KIM-1's 16-bit
+address space has no use for the extended-address record types.
+
 ## Sources
 
 - KIM-1 User's Manual V1.0 memory map (kim-1.com/docs/usrman.htm)

@@ -56,18 +56,29 @@ type portState struct {
 // button (RS = hardware reset, ST = single-step/NMI — both wired directly
 // on real KIM-1 hardware rather than scanned through the keypad matrix),
 // the SST slide switch's new position, the TTY/keyboard mode switch's new
-// position, a line of text typed into the TTY terminal panel, or an App
-// RIOT input-switch position.
+// position, a line of text typed into the TTY terminal panel, an App
+// RIOT input-switch position, or a PAP/Intel HEX file to load straight
+// into memory (bypassing the TTY entirely -- see handleClientMsg's
+// "load" case).
 type clientMsg struct {
-	Type string `json:"type"` // "key" | "reset" | "nmi" | "sst" | "ttyselect" | "ttysend" | "appswitch" | "memview" | "memwrite"
-	Row  int    `json:"row"`
-	Col  int    `json:"col"`
-	Down bool   `json:"down"`
-	Text string `json:"text"`
-	Port string `json:"port"` // "appswitch": "A" or "B"
-	Bit  int    `json:"bit"`  // "appswitch": 0-7
-	Addr int    `json:"addr"` // "memview" / "memwrite"
-	Val  int    `json:"val"`  // "memwrite"
+	Type   string `json:"type"` // "key" | "reset" | "nmi" | "sst" | "ttyselect" | "ttysend" | "appswitch" | "memview" | "memwrite" | "load"
+	Row    int    `json:"row"`
+	Col    int    `json:"col"`
+	Down   bool   `json:"down"`
+	Text   string `json:"text"`
+	Port   string `json:"port"`   // "appswitch": "A" or "B"
+	Bit    int    `json:"bit"`    // "appswitch": 0-7
+	Addr   int    `json:"addr"`   // "memview" / "memwrite"
+	Val    int    `json:"val"`    // "memwrite"
+	Format string `json:"format"` // "load": "pap" or "hex"
+}
+
+// loadResultMsg is sent back to the requesting client only (not
+// broadcast) in response to a "load" message, reporting how it went.
+type loadResultMsg struct {
+	Type    string `json:"type"` // "loadresult"
+	OK      bool   `json:"ok"`
+	Message string `json:"message"`
 }
 
 type client struct {
@@ -99,7 +110,11 @@ func (s *Server) handleWS(w http.ResponseWriter, r *http.Request) {
 		if err := wsjson.Read(ctx, conn, &msg); err != nil {
 			return
 		}
-		s.handleClientMsg(msg)
+		if result := s.handleClientMsg(msg); result != nil {
+			if err := wsjson.Write(ctx, conn, result); err != nil {
+				return
+			}
+		}
 	}
 }
 
@@ -119,7 +134,10 @@ func (s *Server) writeLoop(ctx context.Context, cl *client) {
 	}
 }
 
-func (s *Server) handleClientMsg(msg clientMsg) {
+// handleClientMsg applies msg to the system and, for message types that
+// need a direct reply rather than waiting for the next broadcast (only
+// "load" today), returns it; nil otherwise.
+func (s *Server) handleClientMsg(msg clientMsg) *loadResultMsg {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	switch msg.Type {
@@ -149,7 +167,10 @@ func (s *Server) handleClientMsg(msg clientMsg) {
 		if len(msg.Port) == 1 {
 			s.sys.SetAppSwitch(msg.Port[0], msg.Bit, msg.Down)
 		}
+	case "load":
+		return s.handleLoad(msg.Format, msg.Text)
 	}
+	return nil
 }
 
 func (s *Server) registerClient(c *client) {

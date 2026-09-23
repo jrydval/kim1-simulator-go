@@ -302,6 +302,9 @@ button.key.switch.on {
 }
 
 #mem h2 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   font-size: 0.75rem;
   letter-spacing: 0.1em;
   color: #888;
@@ -310,6 +313,32 @@ button.key.switch.on {
 }
 
 #mem h2 .legend { letter-spacing: normal; color: #666; font-size: 0.9em; }
+
+.mem-load-actions { display: flex; gap: 6px; margin-left: auto; }
+
+button.memload {
+  background: var(--key);
+  color: var(--text);
+  border: 1px solid #000;
+  border-radius: 4px;
+  padding: 3px 8px;
+  font: inherit;
+  font-size: 0.75rem;
+  letter-spacing: normal;
+  cursor: pointer;
+}
+
+button.memload:active { background: var(--key-active); }
+
+#mem-load-status {
+  font-size: 0.75rem;
+  margin: -2px 0 8px;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+#mem-load-status.ok { background: #1f3a1f; color: #9adf9a; }
+#mem-load-status.error { background: #4a1f1f; color: #ff9a8a; }
 
 #mem-nav { display: flex; gap: 6px; margin-bottom: 8px; }
 
