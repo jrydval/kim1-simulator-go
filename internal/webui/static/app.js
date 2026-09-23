@@ -105,6 +105,11 @@ function cleanTTYText(text) {
 }
 
 function renderTTY(runs) {
+  // Rebuilt from scratch at 30Hz, so unconditionally snapping to the
+  // bottom every frame would fight a manual scrollbar drag -- only
+  // re-stick to the bottom if the user was already there (or within a
+  // few pixels, for rounding) before this update.
+  const wasAtBottom = ttyOutEl.scrollHeight - ttyOutEl.scrollTop - ttyOutEl.clientHeight < 4;
   ttyOutEl.textContent = "";
   for (const run of runs) {
     const span = document.createElement("span");
@@ -112,7 +117,7 @@ function renderTTY(runs) {
     span.textContent = cleanTTYText(run.text);
     ttyOutEl.appendChild(span);
   }
-  ttyOutEl.scrollTop = ttyOutEl.scrollHeight;
+  if (wasAtBottom) ttyOutEl.scrollTop = ttyOutEl.scrollHeight;
 }
 
 ttyForm.addEventListener("submit", (e) => {
