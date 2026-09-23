@@ -46,8 +46,8 @@ Implemented and tested (`go test ./...`):
   CPU's PC is highlighted, and PC/DISP buttons jump to the program
   counter or the address on the KIM-1 display, and the last 10 executed
   instructions are lit in orange, fading with age; **Load PAP**/**Load
-  HEX** buttons in its header load a `.pap` (KIM-1 paper-tape) or Intel
-  HEX file straight into memory — unlike pasting a `.pap` into the TTY
+  HEX** buttons in its header load a `.pap`/`.ptp` (KIM-1 paper-tape) or
+  Intel HEX file straight into memory — unlike pasting a `.pap` into the TTY
   panel below, this bypasses the simulated serial link entirely, so it's
   instant regardless of baud rate and doesn't need `TTY/KB` or the
   monitor's `L` command at all; the checksum algorithm was verified
