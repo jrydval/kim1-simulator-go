@@ -62,6 +62,12 @@ type System struct {
 	// register window (post address-decode), for diagnosing real ROM
 	// interoperability issues.
 	DebugIO func(chip string, offset uint16, v uint8)
+
+	// expRAM backs the optional $2000-$FFF9 expansion-RAM window; nil
+	// (the default) leaves that range open bus, matching stock hardware
+	// with nothing plugged into the expansion connector. See
+	// EnableExpansionRAM.
+	expRAM []uint8
 }
 
 // PCHistoryLen is how many recently executed instruction addresses
@@ -114,6 +120,15 @@ func (s *System) SetAppSwitch(port byte, bit int, on bool) {
 	} else {
 		*target &^= 1 << uint(bit)
 	}
+}
+
+// EnableExpansionRAM fills the $2000-$FFF9 window with RAM, simulating a
+// KIM-1 expansion RAM board plugged into the expansion connector. Off by
+// default: on stock hardware that range is open bus, and machine-language
+// programs of any size beyond the on-board 1KB (or a few hundred more
+// bytes borrowed from unused RIOT RAM) genuinely need such a board.
+func (s *System) EnableExpansionRAM() {
+	s.expRAM = make([]uint8, expRAMEnd-expRAMStart+1)
 }
 
 // LoadAppROM installs the application RIOT's (6530-003, $1800-$1BFF) 1KB
@@ -215,6 +230,8 @@ func (s *System) Read(addr uint16) uint8 {
 		return s.App.ReadROM(addr - appROMStart)
 	case addr >= kbdROMStart && addr <= kbdROMEnd:
 		return s.Kbd.ReadROM(addr - kbdROMStart)
+	case addr >= expRAMStart && addr <= expRAMEnd && s.expRAM != nil:
+		return s.expRAM[addr-expRAMStart]
 	case addr >= hwVectorStart:
 		// riot.ReadROM masks to the low 10 bits internally, so the raw
 		// $FFFA-$FFFF address already lands on the same ROM cells as
@@ -234,6 +251,8 @@ func (s *System) Peek(addr uint16) (v uint8, ok bool) {
 	case addr <= ramEnd,
 		addr >= appRAMStart && addr <= kbdROMEnd,
 		addr >= hwVectorStart:
+		return s.Read(addr), true
+	case addr >= expRAMStart && addr <= expRAMEnd && s.expRAM != nil:
 		return s.Read(addr), true
 	default:
 		return 0, false
@@ -264,6 +283,8 @@ func (s *System) Write(addr uint16, v uint8) {
 		s.App.WriteRAM(uint8(addr-appRAMStart), v)
 	case addr >= kbdRAMStart && addr <= kbdRAMEnd:
 		s.Kbd.WriteRAM(uint8(addr-kbdRAMStart), v)
+	case addr >= expRAMStart && addr <= expRAMEnd && s.expRAM != nil:
+		s.expRAM[addr-expRAMStart] = v
 	}
 }
 

@@ -22,6 +22,7 @@ func main() {
 	romKbd := flag.String("rom-kbd", "", "path to the 6530-002 (keypad/display RIOT) ROM image, 1024 bytes")
 	addr := flag.String("addr", "localhost:6502", "address to serve the web UI on")
 	hz := flag.Int("hz", 1_000_000, "emulated CPU clock speed in Hz (0 = unthrottled)")
+	ramExpansion := flag.Bool("ram-expansion", false, "fill $2000-$FFF9 with RAM, simulating an expansion RAM board (off by default, matching stock hardware's open bus there)")
 	flag.Parse()
 
 	if *romApp == "" || *romKbd == "" {
@@ -36,6 +37,9 @@ func main() {
 	}
 	if err := sys.LoadKbdROM(*romKbd); err != nil {
 		log.Fatal(err)
+	}
+	if *ramExpansion {
+		sys.EnableExpansionRAM()
 	}
 	sys.Reset()
 

@@ -79,6 +79,14 @@ in a browser, or in VS Code via the **Simple Browser: Show** command —
 there's also a "Run KIM-1" task in `.vscode/tasks.json` that prompts for
 the two ROM paths and starts the server for you.
 
+Add `-ram-expansion` to fill `$2000`-`$FFF9` with RAM, simulating a RAM
+expansion board plugged into the KIM-1's expansion connector — off by
+default, matching stock hardware, where that range is open bus and
+machine-language programs are limited to the on-board 1KB system RAM
+(plus whatever's borrowed from unused RIOT RAM). The one byte below
+`$FFFA` is left out of the window so the CPU's own fixed vectors keep
+aliasing to the Kbd RIOT's ROM.
+
 ## Using the keypad: returning to the monitor from a program
 
 `BRK` and `ST` only return control to the monitor if the interrupt

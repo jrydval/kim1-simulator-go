@@ -34,6 +34,17 @@ const (
 	kbdROMStart uint16 = 0x1C00 // Kbd RIOT's 1KB mask ROM
 	kbdROMEnd   uint16 = 0x1FFF // holds the hardware vector entry points at $1FFA/$1FFC/$1FFE
 
+	// expRAMStart/expRAMEnd bound the optional expansion-RAM window: a
+	// stock KIM-1 leaves $2000-$FFF9 entirely unpopulated (open bus), the
+	// same as any address decoding neither RIOT nor the 1KB system RAM
+	// board -- large machine-language programs need a RAM expansion board
+	// plugged into the expansion connector to use that space at all. See
+	// System.EnableExpansionRAM. Capped one byte below hwVectorStart so
+	// the CPU's own fixed vectors keep aliasing to Kbd ROM even with
+	// expansion RAM enabled.
+	expRAMStart uint16 = 0x2000
+	expRAMEnd   uint16 = hwVectorStart - 1 // 0xFFF9
+
 	// hwVectorStart is where the 6502's own fixed vectors ($FFFA-$FFFF)
 	// live. On real hardware, incomplete address decoding of the ROM
 	// chip-select aliases this region onto the top of the Kbd RIOT's ROM

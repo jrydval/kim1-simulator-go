@@ -17,7 +17,7 @@ bottom). Implemented in `internal/kim1/memmap.go` and `internal/kim1/system.go`.
 | `$17C0–$17FF` | Kbd RIOT internal RAM (64 bytes) — holds the NMIV/RSTV/IRQV "soft vectors" at `$17FA`/`$17FC`/`$17FE` |
 | `$1800–$1BFF` | App RIOT ROM (1KB) |
 | `$1C00–$1FFF` | Kbd RIOT ROM (1KB) — holds the hardware vector entry points at `$1FFA`/`$1FFC`/`$1FFE` |
-| `$2000–$FFF9` | Unpopulated on a stock board |
+| `$2000–$FFF9` | Unpopulated on a stock board; optionally backed by RAM (`System.EnableExpansionRAM`, `-ram-expansion`), simulating a RAM expansion board on the expansion connector |
 | `$FFFA–$FFFF` | Aliased to the top of Kbd RIOT ROM (`$1FFA–$1FFF`) — incomplete address decoding on the real board is what makes RESET/IRQ/NMI reach the monitor ROM at all |
 
 ## RIOT I/O register decode
