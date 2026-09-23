@@ -95,6 +95,25 @@ func TestTimerFreeRunsAfterUnderflow(t *testing.T) {
 	}
 }
 
+// TestTimerCountsBeforeFirstWrite guards against a regression where an
+// unconfigured timer (divider still its zero value, i.e. never written)
+// got stuck: each underflow reloaded prescale to 0 again, so the value
+// decremented exactly once and then froze -- reading it kept returning
+// the same byte no matter how many cycles elapsed, which is how the bug
+// first surfaced (a memory-viewer probe of $1704/$1744, never written by
+// this monitor ROM, always showing 0xFE).
+func TestTimerCountsBeforeFirstWrite(t *testing.T) {
+	var tm Timer
+	seen := map[uint8]bool{}
+	for i := 0; i < 2000; i++ {
+		tm.Tick(5)
+		seen[tm.PeekValue()] = true
+	}
+	if len(seen) < 2 {
+		t.Fatalf("timer value never changed across 10000 cycles: stuck at %#02x", tm.PeekValue())
+	}
+}
+
 func TestLoadROMValidatesSize(t *testing.T) {
 	r := New()
 	if err := r.LoadROM(make([]byte, 100)); err == nil {

@@ -45,10 +45,28 @@ func (t *Timer) Tick(cycles int) {
 				t.prescale = 1 // free-runs at divide-by-1 after underflow
 			} else {
 				t.value--
-				t.prescale = t.divider
+				t.prescale = t.reload()
 			}
 		}
 	}
+}
+
+// reload returns the prescale divisor to use after each count-down step.
+// divider is 0 before the timer's first Write (the type's zero value),
+// which doesn't correspond to any real divide-by-N setting; treated
+// literally, t.prescale would be reloaded to 0 every step, which the loop
+// above immediately reinterprets as "prescale exhausted" again without
+// ever consuming another cycle of `remaining` -- so the timer counted
+// down once, right after the very first underflow, and then froze at
+// 0xFE forever, no matter how many cycles were ticked. Free-running at
+// divide-by-1 until configured avoids that stuck state and keeps the
+// count visibly live, matching the fact that a real RIOT's timer is
+// likewise already counting before software ever touches it.
+func (t *Timer) reload() uint16 {
+	if t.divider == 0 {
+		return 1
+	}
+	return t.divider
 }
 
 // ReadValue returns the live countdown value and clears the underflow
