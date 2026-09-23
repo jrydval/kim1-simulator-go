@@ -267,7 +267,7 @@ button.key.switch.on {
 
 #tty-out {
   margin: 0;
-  height: 140px;
+  height: 194px; /* was 140px; +3 lines at the 18px line-height below */
   overflow-y: auto;
   white-space: pre-wrap;
   word-break: break-word;
@@ -275,6 +275,7 @@ button.key.switch.on {
   border-radius: 4px;
   padding: 8px;
   font-size: 0.85rem;
+  line-height: 18px;
 }
 
 /* Received (decoded from the CPU's OUTCH) vs. sent (typed by you, with
