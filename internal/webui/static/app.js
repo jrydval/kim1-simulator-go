@@ -390,6 +390,33 @@ function wireMemLoadButton(btnId, fileId, format) {
 wireMemLoadButton("mem-load-pap", "mem-load-pap-file", "pap");
 wireMemLoadButton("mem-load-hex", "mem-load-hex-file", "hex");
 
+// Save BIN/Load BIN: a raw 64KB image of the whole address space, over
+// plain HTTP (GET/POST /snapshot.bin) rather than the WebSocket, so the
+// browser's own download handling saves it and the binary body needs no
+// encoding. Loading resets the CPU; see Server.handleSnapshotLoad.
+document.getElementById("mem-snap-save").addEventListener("click", () => {
+  const stamp = new Date().toISOString().slice(0, 19).replace(/[-:]/g, "").replace("T", "-");
+  const a = document.createElement("a");
+  a.href = "snapshot.bin";
+  a.download = `kim1-${stamp}.bin`;
+  a.click();
+});
+
+const memSnapFileEl = document.getElementById("mem-snap-file");
+document.getElementById("mem-snap-load").addEventListener("click", () => memSnapFileEl.click());
+memSnapFileEl.addEventListener("change", async () => {
+  const file = memSnapFileEl.files[0];
+  memSnapFileEl.value = ""; // allow reselecting the same file next time
+  if (!file) return;
+  try {
+    const resp = await fetch("snapshot.bin", { method: "POST", body: file });
+    const result = await resp.json();
+    showMemLoadStatus(result.ok, result.message);
+  } catch (err) {
+    showMemLoadStatus(false, `snapshot upload failed: ${err}`);
+  }
+});
+
 function updateMem(msg) {
   lastState = msg;
   const base = msg.memAddr;

@@ -58,7 +58,7 @@ func main() {
 		_ = httpServer.Close()
 	}()
 
-	fmt.Printf("KIM-1 running at http://%s — open it in VS Code via \"Simple Browser: Show\"\n", *addr)
+	fmt.Printf("KIM-1 simulator started at http://%s\n", *addr)
 	if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Fatal(err)
 	}

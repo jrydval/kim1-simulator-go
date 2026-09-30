@@ -7,7 +7,9 @@ package webui
 import (
 	"context"
 	"embed"
+	"encoding/json"
 	"fmt"
+	"io"
 	"io/fs"
 	"log"
 	"net/http"
@@ -135,6 +137,8 @@ func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.Handle("/", http.FileServer(http.FS(staticFS)))
 	mux.HandleFunc("/ws", s.handleWS)
+	mux.HandleFunc("GET /snapshot.bin", s.handleSnapshotSave)
+	mux.HandleFunc("POST /snapshot.bin", s.handleSnapshotLoad)
 	return mux
 }
 
@@ -320,6 +324,47 @@ func (s *Server) handleLoad(format, text string) *loadResultMsg {
 		msg += fmt.Sprintf(" (%d bytes skipped: unmapped address)", stats.Skipped)
 	}
 	return &loadResultMsg{Type: "loadresult", OK: true, Message: msg}
+}
+
+// handleSnapshotSave serves the whole 64KB address space as a raw binary
+// download (see kim1.System.Snapshot). Plain HTTP rather than the
+// WebSocket, so the browser's own download handling does the saving.
+func (s *Server) handleSnapshotSave(w http.ResponseWriter, r *http.Request) {
+	s.mu.Lock()
+	img := s.sys.Snapshot()
+	s.mu.Unlock()
+	w.Header().Set("Content-Type", "application/octet-stream")
+	w.Header().Set("Content-Disposition", `attachment; filename="kim1-snapshot.bin"`)
+	w.Write(img)
+}
+
+// handleSnapshotLoad restores a 64KB image posted as the raw request body
+// into RAM, then resets the CPU: the image carries no CPU registers, so
+// whatever was executing can't meaningfully continue, while the monitor
+// comes back up with the user program's saved registers ($EF-$F5)
+// restored along with the rest of RAM, ready for GO. Replies with a
+// loadResultMsg, same as a WebSocket "load".
+func (s *Server) handleSnapshotLoad(w http.ResponseWriter, r *http.Request) {
+	data, err := io.ReadAll(io.LimitReader(r.Body, kim1.SnapshotSize+1))
+	result := loadResultMsg{Type: "loadresult"}
+	if err != nil {
+		result.Message = err.Error()
+	} else {
+		s.mu.Lock()
+		n, err := s.sys.RestoreSnapshot(data)
+		if err != nil {
+			result.Message = err.Error()
+		} else {
+			s.sys.Reset()
+			s.halted = false
+			s.haltReason = ""
+			result.OK = true
+			result.Message = fmt.Sprintf("snapshot restored (%d bytes of RAM), CPU reset", n)
+		}
+		s.mu.Unlock()
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(result)
 }
 
 // memWindow returns memViewBytes bytes starting at memViewAddr via

@@ -64,9 +64,12 @@
           <span class="mem-load-actions">
             <button id="mem-load-pap" class="memload" title="load a .pap/.ptp paper-tape image straight into memory (not via the simulated TTY)">Load PAP</button>
             <button id="mem-load-hex" class="memload" title="load an Intel HEX image straight into memory">Load HEX</button>
+            <button id="mem-snap-save" class="memload" title="save a snapshot of the whole 64KB address space as a raw .bin file (CPU registers not included; the monitor's saved user registers at $EF-$F5 are)">Save BIN</button>
+            <button id="mem-snap-load" class="memload" title="restore a 64KB .bin snapshot into RAM (ROM, I/O and unpopulated bytes are ignored), then reset the CPU">Load BIN</button>
           </span>
           <input id="mem-load-pap-file" type="file" accept=".pap,.ptp,.txt,text/plain" hidden>
           <input id="mem-load-hex-file" type="file" accept=".hex,.txt,text/plain" hidden>
+          <input id="mem-snap-file" type="file" accept=".bin,application/octet-stream" hidden>
         </h2>
         <div id="mem-load-status" hidden></div>
         <div id="mem-nav">
