@@ -135,7 +135,7 @@ function ttyKeyByte(e) {
     case "Tab": return "\t";
   }
   if (e.key.length !== 1) return null;
-  if (e.ctrlKey) {
+  if (e.ctrlKey && !e.altKey) { // Ctrl+Alt is AltGr: an ordinary character
     const code = e.key.toUpperCase().charCodeAt(0);
     if (code >= 0x40 && code <= 0x5f) return String.fromCharCode(code - 0x40);
     return null;
@@ -145,10 +145,17 @@ function ttyKeyByte(e) {
   return ttyCapsBtn.classList.contains("on") ? e.key.toUpperCase() : e.key;
 }
 
+const isMac = navigator.platform.startsWith("Mac");
+
 ttyOutEl.addEventListener("keydown", (e) => {
-  if (e.metaKey || e.altKey) return; // leave browser/OS shortcuts (Cmd+V, ...) alone
+  if (e.metaKey) return; // leave browser/OS shortcuts (Cmd+V, ...) alone
+  // On a Mac, Option is how many layouts type characters at all (Czech:
+  // Right-Option+ů = ";"), so it's passed through; ttyKeyByte drops
+  // whatever it produces that a teletype doesn't have. Elsewhere a bare
+  // Alt is a browser shortcut, while AltGr (reported as Ctrl+Alt) types.
+  if (e.altKey && !e.ctrlKey && !isMac) return;
   // Ctrl+V / Ctrl+Shift+V paste on Windows/Linux rather than send SYN.
-  if (e.ctrlKey && e.key.toLowerCase() === "v" && !navigator.platform.startsWith("Mac")) return;
+  if (e.ctrlKey && !e.altKey && e.key.toLowerCase() === "v" && !isMac) return;
   const b = ttyKeyByte(e);
   if (b === null) return;
   e.preventDefault();
