@@ -47,17 +47,12 @@ type Server struct {
 	halted     bool
 	haltReason string
 
-	// ttyLog is the TTY transcript as alternating runs of typed (Sent)
-	// and decoded-from-the-CPU (!Sent) text, capped by total text length
-	// to maxTTYBuf. There's no hardware local echo to rely on here (a
-	// real teletype's keyboard is mechanically linked to its own
-	// printer, independent of what's actually received), so this is
-	// the only place "what I typed" becomes visible at all. Appended to
-	// from onTTYByte (fires synchronously from within stepBatch, mu
-	// already held) and from handleClientMsg's "ttysend" case (mu also
-	// already held) — both under the same lock, so run ordering always
-	// matches actual send/receive order.
-	ttyLog []ttyRun
+	// ttyOut is what the teletype's printer has printed: every byte
+	// decoded from the PTR loop, including the hardware echo of typed
+	// keys (see kim1.TTY), capped to the last maxTTYBuf bytes. Appended
+	// to from onTTYByte, which fires synchronously from within stepBatch
+	// with mu already held.
+	ttyOut []byte
 
 	// memViewAddr is the start of the memory window shown in the hex
 	// viewer, shared by all clients (this is a single-user local tool).
@@ -67,15 +62,8 @@ type Server struct {
 // memViewBytes is the size of the hex viewer's window: one 256-byte page.
 const memViewBytes = 256
 
-// ttyRun is one contiguous stretch of the TTY transcript, either typed
-// by the user (Sent) or decoded from the CPU's TTY output.
-type ttyRun struct {
-	Text string `json:"text"`
-	Sent bool   `json:"sent"`
-}
-
-// maxTTYBuf caps how much TTY transcript text is retained/broadcast;
-// only the tail is kept once exceeded.
+// maxTTYBuf caps how much printer output is retained/broadcast; only
+// the tail is kept once exceeded.
 const maxTTYBuf = 4096
 
 // NewServer returns a Server driving sys, throttled to approximately the
@@ -93,38 +81,21 @@ func NewServer(sys *kim1.System) *Server {
 // onTTYByte is TTY.OnByte: called synchronously from within stepBatch
 // (which already holds mu), so it must not lock.
 func (s *Server) onTTYByte(b byte) {
-	s.appendTTY(string(rune(b)), false)
+	s.ttyOut = append(s.ttyOut, b)
+	if excess := len(s.ttyOut) - maxTTYBuf; excess > 0 {
+		s.ttyOut = append(s.ttyOut[:0], s.ttyOut[excess:]...)
+	}
 }
 
-// appendTTY extends the TTY transcript with text of the given kind
-// (sent by the user, or decoded from the CPU), coalescing into the
-// previous run when it's the same kind, then trims to maxTTYBuf. Callers
-// must already hold mu.
-func (s *Server) appendTTY(text string, sent bool) {
-	if text == "" {
-		return
+// ttyString maps each raw printer byte to the rune of the same value, so
+// high-bit bytes survive JSON encoding (as U+0080-U+00FF) instead of
+// being replaced as invalid UTF-8; the browser masks them itself.
+func ttyString(b []byte) string {
+	r := make([]rune, len(b))
+	for i, c := range b {
+		r[i] = rune(c)
 	}
-	if n := len(s.ttyLog); n > 0 && s.ttyLog[n-1].Sent == sent {
-		s.ttyLog[n-1].Text += text
-	} else {
-		s.ttyLog = append(s.ttyLog, ttyRun{Text: text, Sent: sent})
-	}
-
-	total := 0
-	for _, r := range s.ttyLog {
-		total += len(r.Text)
-	}
-	for total > maxTTYBuf && len(s.ttyLog) > 0 {
-		excess := total - maxTTYBuf
-		first := &s.ttyLog[0]
-		if len(first.Text) <= excess {
-			total -= len(first.Text)
-			s.ttyLog = s.ttyLog[1:]
-		} else {
-			first.Text = first.Text[excess:]
-			total -= excess
-		}
-	}
+	return string(r)
 }
 
 // Handler returns the HTTP handler serving the embedded static UI and the
@@ -253,28 +224,25 @@ func (s *Server) broadcastState() {
 	digits := s.sys.Display.Snapshot(s.sys.CPU.Cycles)
 	instr := disassembleAtDisplayAddress(s.sys, digits)
 	msg := stateMsg{
-		Type:      "state",
-		A:         s.sys.CPU.A,
-		X:         s.sys.CPU.X,
-		Y:         s.sys.CPU.Y,
-		SP:        s.sys.CPU.SP,
-		PC:        s.sys.CPU.PC,
-		P:         s.sys.CPU.P,
-		Cycles:    s.sys.CPU.Cycles,
-		Digits:    digits,
-		Halted:    s.halted,
-		Error:     s.haltReason,
-		SST:       s.sys.SST,
-		Instr:     instr,
-		AppPA:     portState{Value: s.sys.App.PortA.Read(), DDR: s.sys.App.PortA.ReadDDR()},
-		AppPB:     portState{Value: s.sys.App.PortB.Read(), DDR: s.sys.App.PortB.ReadDDR()},
-		KbdPA:     portState{Value: s.sys.Kbd.PortA.Read(), DDR: s.sys.Kbd.PortA.ReadDDR()},
-		KbdPB:     portState{Value: s.sys.Kbd.PortB.Read(), DDR: s.sys.Kbd.PortB.ReadDDR()},
-		TTYSelect: s.sys.TTYSelect,
-		// Copied rather than aliased: s.ttyLog's backing array can be
-		// mutated by a later appendTTY call while this message is still
-		// queued for (or being marshaled by) a slow client.
-		TTYLog:     append([]ttyRun(nil), s.ttyLog...),
+		Type:       "state",
+		A:          s.sys.CPU.A,
+		X:          s.sys.CPU.X,
+		Y:          s.sys.CPU.Y,
+		SP:         s.sys.CPU.SP,
+		PC:         s.sys.CPU.PC,
+		P:          s.sys.CPU.P,
+		Cycles:     s.sys.CPU.Cycles,
+		Digits:     digits,
+		Halted:     s.halted,
+		Error:      s.haltReason,
+		SST:        s.sys.SST,
+		Instr:      instr,
+		AppPA:      portState{Value: s.sys.App.PortA.Read(), DDR: s.sys.App.PortA.ReadDDR()},
+		AppPB:      portState{Value: s.sys.App.PortB.Read(), DDR: s.sys.App.PortB.ReadDDR()},
+		KbdPA:      portState{Value: s.sys.Kbd.PortA.Read(), DDR: s.sys.Kbd.PortA.ReadDDR()},
+		KbdPB:      portState{Value: s.sys.Kbd.PortB.Read(), DDR: s.sys.Kbd.PortB.ReadDDR()},
+		TTYSelect:  s.sys.TTYSelect,
+		TTYOut:     ttyString(s.ttyOut),
 		AppSwitchA: s.sys.AppSwitchA,
 		AppSwitchB: s.sys.AppSwitchB,
 		MemAddr:    s.memViewAddr,

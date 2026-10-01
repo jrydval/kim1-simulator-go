@@ -278,21 +278,45 @@ button.key.switch.on {
   line-height: 18px;
 }
 
-/* Received (decoded from the CPU's OUTCH) vs. sent (typed by you, with
-   no real hardware local echo to rely on -- see app.js's renderTTY). */
-.tty-recv { color: #8f8; }
-.tty-sent { color: #ffcc66; font-weight: 600; }
-
-#tty-in {
-  width: 100%;
-  margin-top: 8px;
-  background: #111;
+#tty-out {
+  color: #8f8;
+  outline: none;
   border: 1px solid #333;
-  border-radius: 4px;
-  padding: 6px 8px;
-  color: var(--text);
-  font: inherit;
-  font-size: 0.85rem;
+}
+
+#tty-out:focus {
+  border-color: #5a9a5a;
+}
+
+/* Block cursor after the last printed character, blinking only while the
+   terminal has keyboard focus. */
+.tty-cursor {
+  display: inline-block;
+  width: 0.6em;
+  height: 1em;
+  vertical-align: text-bottom;
+  background: #3a5a3a;
+}
+
+#tty-out:focus .tty-cursor {
+  background: #8f8;
+  animation: tty-blink 1s steps(1) infinite;
+}
+
+@keyframes tty-blink {
+  50% { background: transparent; }
+}
+
+#tty-hint {
+  margin-top: 6px;
+  font-size: 0.7rem;
+  color: #777;
+}
+
+#tty-caps {
+  padding: 3px 8px;
+  aspect-ratio: auto;
+  font-size: 0.7rem;
 }
 
 #mem {

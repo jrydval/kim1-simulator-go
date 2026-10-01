@@ -34,7 +34,7 @@ func (s *System) refreshDisplay() {
 }
 
 // keypadColumnInput supplies Port A's input-mode bits. Bit 7 is always
-// the TTY's RX line (idle-high), sampled by GETCH regardless of what the
+// the TTY keyboard loop as gated by PB5 (idle-high, see ttyPA7), sampled by GETCH regardless of what the
 // keypad/display multiplexer is doing at that instant -- confirmed by
 // disassembling the real ROM, where GETCH's "BIT SAD" doesn't check the
 // 74145 select line at all. Bits 0-6 come from whichever keyboard row
@@ -43,7 +43,7 @@ func (s *System) refreshDisplay() {
 // monitor's own reset-time and main-loop "BIT SAD" checks of that bit),
 // with bits 1-6 idle-high.
 func (s *System) keypadColumnInput() uint8 {
-	rx := s.TTY.RXBit(s.CPU.Cycles) << 7
+	rx := s.ttyPA7() << 7
 
 	line := s.kbdMuxLine()
 	if line < 0 || line > 2 {

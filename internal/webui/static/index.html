@@ -47,12 +47,11 @@
       <section id="tty" aria-label="TTY terminal">
         <h2>
           TTY
+          <button id="tty-caps" class="key switch on" title="upper case only, like a Teletype ASR-33 keyboard (the KIM-1 monitor only understands upper-case hex)">CAPS</button>
           <button id="tty-switch" class="key switch" title="TTY/keyboard mode switch: on = boot into TTY command mode instead of keypad/display mode (Port A bit 0). Turn on, then press RS -- the terminal auto-sends RUBOUT on reset to trigger the monitor's baud calibration.">TTY/KB</button>
         </h2>
-        <pre id="tty-out"></pre>
-        <form id="tty-form">
-          <input id="tty-in" type="text" autocomplete="off" placeholder="type and press Enter to send a line (as CR)">
-        </form>
+        <pre id="tty-out" tabindex="0" title="click here and type: each key goes straight onto the TTY line; what you see is only what the KIM-1 echoes back"></pre>
+        <div id="tty-hint">click the terminal and type &middot; Enter = CR, Backspace = RUBOUT, Ctrl+key = control code &middot; pasted text is paced to the monitor</div>
       </section>
     </div>
 

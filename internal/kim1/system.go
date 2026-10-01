@@ -160,10 +160,11 @@ func (s *System) LoadKbdROM(path string) error {
 
 // Reset performs the CPU reset sequence, fetching PC from the aliased
 // hardware reset vector ($FFFC/$FFFD -> $1FFC/$1FFD in Kbd ROM). If
-// TTYSelect is on, it also queues the RUBOUT ($7F) byte a real teletype
-// sends to trigger the monitor's post-reset auto-baud calibration (see
+// TTYSelect is on, it also queues the RUBOUT ($7F) a teletype operator
+// types to trigger the monitor's post-reset auto-baud calibration (see
 // TTY's doc comment) -- without it, GETCH/OUTCH would use whatever
 // leftover (or zero) delay was in RAM and run far too fast to decode.
+// It's paced (TTY.Send), so it waits until the monitor is polling PA7.
 func (s *System) Reset() {
 	s.CPU.Reset()
 	s.pcCount = 0
@@ -173,8 +174,40 @@ func (s *System) Reset() {
 	}
 }
 
-// Step executes one CPU instruction and ticks both RIOT timers by the
-// number of cycles it consumed.
+// pinLevel returns the electrical level of one Port pin: the driven
+// value for an output, or 1 for an input, since nothing else drives the
+// Kbd RIOT's Port B lines and a floating TTL gate input reads high.
+func pinLevel(p *riot.Port, bit uint) uint8 {
+	if p.ReadDDR()&(1<<bit) == 0 {
+		return 1
+	}
+	return (p.OutputData() >> bit) & 1
+}
+
+// ttyInputEnabled reports whether PB5 is low, letting U15D pass the TTY
+// keyboard loop through to PA7 (see TTY's doc comment).
+func (s *System) ttyInputEnabled() bool {
+	return pinLevel(&s.Kbd.PortB, 5) == 0
+}
+
+// ttyPA7 is U15D's output: the TTY keyboard loop's level, or idle-mark
+// while PB5 inhibits it.
+func (s *System) ttyPA7() uint8 {
+	if !s.ttyInputEnabled() {
+		return 1
+	}
+	return s.TTY.KbdLevel(s.CPU.Cycles)
+}
+
+// ttyPTR is the level U26C drives onto the teletype printer loop:
+// mark only while both PA7 and PB0 are high, which is what echoes
+// incoming keyboard bits back to the printer in hardware.
+func (s *System) ttyPTR() uint8 {
+	return s.ttyPA7() & pinLevel(&s.Kbd.PortB, 0)
+}
+
+// Step executes one CPU instruction, ticks both RIOT timers by the
+// number of cycles it consumed, and samples the TTY printer loop.
 func (s *System) Step() int {
 	startPC := s.CPU.PC
 	opcode := s.Read(startPC)
@@ -182,6 +215,8 @@ func (s *System) Step() int {
 	cycles := s.CPU.Step()
 	s.App.TickTimer(cycles)
 	s.Kbd.TickTimer(cycles)
+
+	s.TTY.ObservePtr(s.CPU.Cycles, s.ttyPTR())
 
 	if !s.CPU.WasInterrupt() {
 		s.pcHist[s.pcHead] = startPC
@@ -221,6 +256,9 @@ func (s *System) Read(addr uint16) uint8 {
 	case addr >= appIOStart && addr <= appIOEnd:
 		return readIO(s.App, addr-appIOStart)
 	case addr >= kbdIOStart && addr <= kbdIOEnd:
+		if decodeIOOffset(addr-kbdIOStart) == regPortA && s.ttyInputEnabled() {
+			s.TTY.CPUPolled(s.CPU.Cycles)
+		}
 		return readIO(s.Kbd, addr-kbdIOStart)
 	case addr >= appRAMStart && addr <= appRAMEnd:
 		return s.App.ReadRAM(uint8(addr - appRAMStart))
@@ -273,9 +311,6 @@ func (s *System) Write(addr uint16, v uint8) {
 	case addr >= kbdIOStart && addr <= kbdIOEnd:
 		writeIO(s.Kbd, addr-kbdIOStart, v)
 		s.refreshDisplay()
-		if decodeIOOffset(addr-kbdIOStart) == regPortB {
-			s.TTY.ObserveTxWrite(s.Kbd.PortB.OutputData() & 1)
-		}
 		if s.DebugIO != nil {
 			s.DebugIO("kbd", addr-kbdIOStart, v)
 		}

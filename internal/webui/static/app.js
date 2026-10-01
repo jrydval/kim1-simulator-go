@@ -67,8 +67,7 @@ let sstBtn = null;
 
 const ttySwitchBtn = document.getElementById("tty-switch");
 const ttyOutEl = document.getElementById("tty-out");
-const ttyForm = document.getElementById("tty-form");
-const ttyInEl = document.getElementById("tty-in");
+const ttyCapsBtn = document.getElementById("tty-caps");
 
 ttySwitchBtn.addEventListener("click", () => {
   const on = !ttySwitchBtn.classList.contains("on");
@@ -76,15 +75,19 @@ ttySwitchBtn.addEventListener("click", () => {
   sendMsg({ type: "ttyselect", down: on });
 });
 
-// Real teletypes echo what you type locally (the keyboard is
-// mechanically linked to the printer, independent of what's actually
-// received), so without that there'd be no visual trace of your own
-// input at all. The server tags each transcript run as sent (typed by
-// you) or received (decoded from the CPU's TTY output); render them in
-// different colors so the two are distinguishable at a glance.
+ttyCapsBtn.addEventListener("click", () => {
+  ttyCapsBtn.classList.toggle("on");
+  ttyOutEl.focus();
+});
+
+// The terminal shows only what the TTY printer loop carries: the
+// KIM-1's own output plus the hardware echo of whatever you type (the
+// schematic's U26C copies PA7 onto the printer line), so nothing typed
+// appears unless the KIM-1 actually passes it through -- e.g. not while
+// PB5 inhibits the TTY input.
 //
-// Each character in a run corresponds 1:1 to one raw TTY byte (see
-// server.go's onTTYByte). Some real KIM-1 software -- confirmed against
+// Each character corresponds 1:1 to one raw TTY byte (see server.go's
+// ttyString). Some real KIM-1 software -- confirmed against
 // TinyBASIC-2000 -- pads its output with filler bytes for a mechanical
 // teletype's carriage-return timing, sent with the high bit set over an
 // otherwise-ordinary ASCII control code (e.g. $FF = RUBOUT $7F, $91 =
@@ -93,7 +96,7 @@ ttySwitchBtn.addEventListener("click", () => {
 // control codes (keeping CR/LF/TAB) rather than showing raw mojibake.
 function ttyDisplayChar(ch) {
   const code = ch.charCodeAt(0) & 0x7f;
-  if (code === 0x0d || code === 0x0a || code === 0x09) return ch;
+  if (code === 0x0d || code === 0x0a || code === 0x09) return String.fromCharCode(code);
   if (code < 0x20 || code === 0x7f) return "";
   return String.fromCharCode(code);
 }
@@ -104,29 +107,64 @@ function cleanTTYText(text) {
   return out;
 }
 
-function renderTTY(runs) {
-  // Rebuilt from scratch at 30Hz, so unconditionally snapping to the
-  // bottom every frame would fight a manual scrollbar drag -- only
+let lastTTYText = null;
+
+function renderTTY(text) {
+  if (text === lastTTYText) return;
+  lastTTYText = text;
+  // Rebuilt from scratch whenever it changes, so unconditionally
+  // snapping to the bottom would fight a manual scrollbar drag -- only
   // re-stick to the bottom if the user was already there (or within a
   // few pixels, for rounding) before this update.
   const wasAtBottom = ttyOutEl.scrollHeight - ttyOutEl.scrollTop - ttyOutEl.clientHeight < 4;
-  ttyOutEl.textContent = "";
-  for (const run of runs) {
-    const span = document.createElement("span");
-    span.className = run.sent ? "tty-sent" : "tty-recv";
-    span.textContent = cleanTTYText(run.text);
-    ttyOutEl.appendChild(span);
-  }
+  ttyOutEl.textContent = cleanTTYText(text);
+  const cursor = document.createElement("span");
+  cursor.className = "tty-cursor";
+  ttyOutEl.appendChild(cursor);
   if (wasAtBottom) ttyOutEl.scrollTop = ttyOutEl.scrollHeight;
 }
 
-ttyForm.addEventListener("submit", (e) => {
+// ttyKeyByte maps a keydown to the byte a teletype keyboard would send,
+// or null for keys it doesn't have (arrows, function keys, ...).
+function ttyKeyByte(e) {
+  switch (e.key) {
+    case "Enter": return "\r"; // RETURN sends just CR; the monitor adds LF
+    case "Backspace":
+    case "Delete": return "\x7f"; // RUBOUT
+    case "Escape": return "\x1b";
+    case "Tab": return "\t";
+  }
+  if (e.key.length !== 1) return null;
+  if (e.ctrlKey) {
+    const code = e.key.toUpperCase().charCodeAt(0);
+    if (code >= 0x40 && code <= 0x5f) return String.fromCharCode(code - 0x40);
+    return null;
+  }
+  const code = e.key.charCodeAt(0);
+  if (code > 0x7e) return null; // not on a teletype
+  return ttyCapsBtn.classList.contains("on") ? e.key.toUpperCase() : e.key;
+}
+
+ttyOutEl.addEventListener("keydown", (e) => {
+  if (e.metaKey || e.altKey) return; // leave browser/OS shortcuts (Cmd+V, ...) alone
+  // Ctrl+V / Ctrl+Shift+V paste on Windows/Linux rather than send SYN.
+  if (e.ctrlKey && e.key.toLowerCase() === "v" && !navigator.platform.startsWith("Mac")) return;
+  const b = ttyKeyByte(e);
+  if (b === null) return;
   e.preventDefault();
-  // A real teletype's RETURN key sends just CR ($0D); the monitor's own
-  // GETCH/OUTCH echo supplies the LF back, which is why decoded output
-  // shows up as "\r\n".
-  sendMsg({ type: "ttysend", text: ttyInEl.value + "\r" });
-  ttyInEl.value = "";
+  sendMsg({ type: "ttytype", text: b });
+});
+
+// Pasted text is paced to the CPU (see kim1.TTY.Send) rather than typed
+// at full line speed, so the monitor doesn't drop characters that arrive
+// while it's busy printing -- handy for feeding it a whole program.
+document.addEventListener("paste", (e) => {
+  if (document.activeElement !== ttyOutEl) return;
+  e.preventDefault();
+  let text = (e.clipboardData || window.clipboardData).getData("text");
+  text = text.replace(/\r\n?/g, "\n").replace(/\n/g, "\r");
+  if (ttyCapsBtn.classList.contains("on")) text = text.toUpperCase();
+  if (text) sendMsg({ type: "ttypaste", text });
 });
 
 function sendMsg(msg) {
@@ -515,7 +553,7 @@ function connect() {
 
     if (sstBtn) sstBtn.classList.toggle("on", msg.sst);
     ttySwitchBtn.classList.toggle("on", msg.ttySelect);
-    renderTTY(msg.ttyLog || []);
+    renderTTY(msg.ttyOut || "");
 
     const flagNames = ["C", "Z", "I", "D", "B", "-", "V", "N"];
     const flags = flagNames

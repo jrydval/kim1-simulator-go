@@ -144,17 +144,31 @@ TTY/keyboard mode jumper. With it on, the monitor boots into TTY command
 mode instead of keypad/display mode; with it off (the default), the
 keypad/display work as normal and the terminal panel stays unused.
 
-The serial link is emulated at the pin level, not by trapping ROM
-routines: `internal/kim1/tty.go` reconstructs whatever the CPU writes to
-the TTY output pin (Port B bit 0) into bytes, and drives the TTY input
-pin (Port A bit 7) with whatever you type, framed as a real 1-start /
-8-data / 1-stop bit software UART — confirmed against the real ROM's
-GETCH ($1E5A) and OUTCH ($1EA0) routines. The monitor has no baud-rate
-setting; at reset it measures the width of the first start bit it
-receives and uses that as its bit time from then on, which is why a real
-teletype's bootstrap procedure is to send RUBOUT first. This emulator
-does that step automatically — flip `TTY/KB` on, then press `RS`, and
-the boot banner should appear in the terminal panel.
+The serial link is emulated at the pin level, following the schematic
+(`docs/kim-1-schematic.pdf`) rather than trapping ROM routines:
+`internal/kim1/tty.go` models the teletype's two current loops. The
+keyboard loop reaches Port A bit 7 through gate U15D, which Port B bit 5
+can close (PB5 high = TTY input inhibited). The printer loop is driven
+by gate U26C as PA7 AND PB0, so every bit you type is echoed back to the
+printer **by hardware** — the monitor's GETCH ($1E5A) never echoes
+anything itself. The terminal decodes the printer loop with a sampling
+1-start / 8-data / 1-stop UART at its own baud rate, like a real
+terminal, and shows only what arrives there: if the KIM-1 doesn't pass
+your keystroke through, you don't see it.
+
+Click the terminal panel and type; each key goes onto the line at once
+(Enter = CR, Backspace = RUBOUT, Ctrl+letter = control code, `CAPS`
+forces upper case like an ASR-33). As on the real machine, keys typed
+while the monitor is busy printing can be lost. Pasted text is instead
+paced: each byte waits until the CPU next polls PA7, so a whole program
+can be pasted into the monitor.
+
+The monitor has no baud-rate setting; at reset it measures the width of
+the first start bit it receives and uses that as its bit time from then
+on, which is why a real teletype's bootstrap procedure is to send RUBOUT
+first. This emulator does that step automatically — flip `TTY/KB` on,
+then press `RS`, and the boot banner should appear in the terminal
+panel.
 
 ## ROM images
 

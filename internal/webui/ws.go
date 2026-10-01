@@ -28,7 +28,7 @@ type stateMsg struct {
 	KbdPA      portState `json:"kbdPA"`
 	KbdPB      portState `json:"kbdPB"`
 	TTYSelect  bool      `json:"ttySelect"`
-	TTYLog     []ttyRun  `json:"ttyLog"`
+	TTYOut     string    `json:"ttyOut"`
 	AppSwitchA uint8     `json:"appSwitchA"`
 	AppSwitchB uint8     `json:"appSwitchB"`
 	MemAddr    uint16    `json:"memAddr"`
@@ -56,12 +56,13 @@ type portState struct {
 // button (RS = hardware reset, ST = single-step/NMI — both wired directly
 // on real KIM-1 hardware rather than scanned through the keypad matrix),
 // the SST slide switch's new position, the TTY/keyboard mode switch's new
-// position, a line of text typed into the TTY terminal panel, an App
+// position, keys typed into the TTY terminal (sent on the wire at once)
+// or text pasted into it (paced to the CPU, see kim1.TTY.Send), an App
 // RIOT input-switch position, or a PAP/Intel HEX file to load straight
 // into memory (bypassing the TTY entirely -- see handleClientMsg's
 // "load" case).
 type clientMsg struct {
-	Type   string `json:"type"` // "key" | "reset" | "nmi" | "sst" | "ttyselect" | "ttysend" | "appswitch" | "memview" | "memwrite" | "load"
+	Type   string `json:"type"` // "key" | "reset" | "nmi" | "sst" | "ttyselect" | "ttytype" | "ttypaste" | "appswitch" | "memview" | "memwrite" | "load"
 	Row    int    `json:"row"`
 	Col    int    `json:"col"`
 	Down   bool   `json:"down"`
@@ -153,9 +154,10 @@ func (s *Server) handleClientMsg(msg clientMsg) *loadResultMsg {
 		s.sys.SST = msg.Down
 	case "ttyselect":
 		s.sys.TTYSelect = msg.Down
-	case "ttysend":
+	case "ttytype":
+		s.sys.TTY.Type([]byte(msg.Text)...)
+	case "ttypaste":
 		s.sys.TTY.Send([]byte(msg.Text)...)
-		s.appendTTY(msg.Text, true)
 	case "memview":
 		s.memViewAddr = uint16(msg.Addr) &^ (memViewBytes - 1)
 	case "memwrite":

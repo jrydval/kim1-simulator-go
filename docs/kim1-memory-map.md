@@ -88,12 +88,19 @@ source listing (brainwagon/kim-1):
 
 - RX (into the CPU): Kbd RIOT **Port A bit 7**, idle-high (mark = 1,
   start bit = 0). Sampled directly by GETCH regardless of what the
-  74145 keypad/display multiplexer is doing.
+  74145 keypad/display multiplexer is doing. Per the schematic, PA7 is
+  the output of U15D (7400): `PA7 = NAND(Q7 collector, NOT PB5)`, so
+  **PB5 high inhibits TTY input** (PA7 held at mark); PB5 likewise
+  gates the cassette input through U26D. The monitor's INIT ($1E88)
+  sets PBDD = $3F and PBD = $07, i.e. PB5 low (input enabled).
 - TX (out of the CPU): Kbd RIOT **Port B bit 0**, same idle-high
-  framing. OUTCH performs exactly one write per bit period (start, 8
-  data bits LSB-first, stop), which is enough on its own to decode
-  byte framing without needing to track timing at all — see
-  `internal/kim1/tty.go`'s `ObserveTxWrite`.
+  framing. The printer loop is driven by U26C (7438, open collector) as
+  `NAND(PA7, PB0)`, i.e. the printer sees mark only while PA7 *and* PB0
+  are high. That is the KIM-1's **hardware echo**: incoming keyboard
+  bits are copied to the printer as they arrive, which is why GETCH
+  never transmits anything. The emulator samples this line after every
+  instruction and decodes it with a mid-bit-sampling UART at
+  `TTY.CyclesPerBit` (`TTY.ObservePtr`).
 - Port A bit 0 doubles as the physical TTY/keyboard mode switch
   (`System.TTYSelect`) whenever the multiplexer isn't actively
   selecting a keyboard row — read once at reset (`$1C31`) and again on
@@ -125,7 +132,7 @@ source listing (brainwagon/kim-1):
   for these either, so the terminal panel masks bit 7 and drops
   non-printing control codes before rendering (`app.js`'s
   `cleanTTYText`) rather than showing raw mojibake; the underlying
-  `ttyLog` byte stream itself is untouched.
+  printer byte stream itself is untouched.
 
 ## PAP paper-tape format and the memory viewer's Load PAP/Load HEX
 
@@ -134,8 +141,8 @@ file and write it straight into memory via `System.Write`, gated by
 `Peek` the same way the memory editor's manual byte edits are (so a
 record can't accidentally land on a RIOT I/O register and toggle a pin
 or reset a timer). This is a separate, instant path from pasting a
-`.pap` into the TTY panel, which instead feeds it through the real
-simulated serial link and the monitor's own `L` command at whatever baud
+`.pap` into the TTY panel, which instead feeds it (paced, see
+`TTY.Send`) through the real simulated serial link and the monitor's own `L` command at whatever baud
 rate `TTY.CyclesPerBit` is set to.
 
 KIM-1 PAP records are `;LLAAAADD..DDCCCC`: `LL` = data byte count,
