@@ -24,7 +24,7 @@ func TestSnapshotRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("RestoreSnapshot: %v", err)
 	}
-	if want := 0x400 + 0x80 + int(expRAMEnd-expRAMStart+1); n != want {
+	if want := 0x400 + 0x80 + 0x1000 + int(expRAMEnd-expRAMStart+1); n != want {
 		t.Fatalf("restored %d bytes, want %d", n, want)
 	}
 	for _, c := range []struct {

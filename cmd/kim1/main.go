@@ -14,6 +14,7 @@ import (
 	"syscall"
 
 	"6502/internal/kim1"
+	"6502/internal/sdcard"
 	"6502/internal/webui"
 )
 
@@ -22,7 +23,9 @@ func main() {
 	romKbd := flag.String("rom-kbd", "", "path to the 6530-002 (keypad/display RIOT) ROM image, 1024 bytes")
 	addr := flag.String("addr", "localhost:6502", "address to serve the web UI on")
 	hz := flag.Int("hz", 1_000_000, "emulated CPU clock speed in Hz (0 = unthrottled)")
-	ramExpansion := flag.Bool("ram-expansion", false, "fill $2000-$FFF9 with RAM, simulating an expansion RAM board (off by default, matching stock hardware's open bus there)")
+	ramExpansion := flag.Bool("ram-expansion", false, "fill $0400-$13FF and $2000-$FFF9 with RAM, simulating a full RAM upgrade (off by default, matching stock hardware's open bus there)")
+	sdImage := flag.String("sdcard", "", "raw SD card image to attach via bit-banged SPI on App RIOT Port A (PA4=CS, PA3=SCK, PA2=MOSI, PA1=MISO), as used by CP/M-65; writes go straight to the file")
+	baud := flag.Int("baud", 300, "TTY baud rate (the monitor auto-calibrates to it on reset; up to 9600 works)")
 	flag.Parse()
 
 	if *romApp == "" || *romKbd == "" {
@@ -40,6 +43,22 @@ func main() {
 	}
 	if *ramExpansion {
 		sys.EnableExpansionRAM()
+	}
+	if *baud <= 0 {
+		log.Fatalf("kim1: -baud must be positive, got %d", *baud)
+	}
+	sys.TTY.CyclesPerBit = uint64(1_000_000 / *baud)
+	if *sdImage != "" {
+		f, err := os.OpenFile(*sdImage, os.O_RDWR, 0)
+		if err != nil {
+			log.Fatalf("kim1: opening SD card image: %v", err)
+		}
+		defer f.Close()
+		info, err := f.Stat()
+		if err != nil {
+			log.Fatalf("kim1: opening SD card image: %v", err)
+		}
+		sys.AttachSDCard(sdcard.New(f, info.Size()))
 	}
 	sys.Reset()
 

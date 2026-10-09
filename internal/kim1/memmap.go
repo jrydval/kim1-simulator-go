@@ -21,6 +21,13 @@ const (
 	ramStart uint16 = 0x0000
 	ramEnd   uint16 = 0x03FF // 1KB on-board system RAM
 
+	// holeRAMStart/holeRAMEnd bound the "memory hole" between the
+	// on-board RAM and the RIOTs, unpopulated on a stock board. A full
+	// RAM upgrade fills it along with the expansion window below (see
+	// System.EnableExpansionRAM); CP/M-65 relocates its BIOS there.
+	holeRAMStart uint16 = 0x0400
+	holeRAMEnd   uint16 = 0x13FF
+
 	appIOStart  uint16 = 0x1700 // App RIOT (6530-003) I/O + timer registers
 	appIOEnd    uint16 = 0x173F
 	kbdIOStart  uint16 = 0x1740 // Kbd RIOT (6530-002) I/O + timer registers

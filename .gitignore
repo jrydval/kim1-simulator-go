@@ -21,6 +21,7 @@ testdata/6530-*.bin
 # testdata/ for local testing — same reasoning as the ROM dumps above.
 testdata/*.ptp
 testdata/*.hex
+testdata/cpm65/
 
 # Editor
 .vscode/*

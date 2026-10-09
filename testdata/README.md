@@ -36,3 +36,14 @@ the full `cmd/kim1` system you must supply your own dumps via the
 See [retro.hansotten.nl's KIM-1 ROMs
 page](http://retro.hansotten.nl/6502-sbc/kim-1-manuals-and-software/kim_1-roms/)
 for background on these ROM images and where to find dumps.
+
+## CP/M-65 (not included)
+
+`internal/kim1/cpm65_test.go` boots CP/M-65 from the emulated SD card
+and runs a few commands. It needs the ROM images above plus
+`testdata/cpm65/bootsd.pap` and `testdata/cpm65/diskimage.raw`, both
+from `kim-1-sdcard.zip` in the [CP/M-65 development
+release](https://github.com/davidgiven/cpm65/releases/tag/dev) (BSD
+licensed, but a 32MB image doesn't belong in git). The test runs against
+a temporary copy of the image and skips when any of these files is
+missing.

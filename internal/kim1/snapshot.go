@@ -21,7 +21,8 @@ func (s *System) Snapshot() []byte {
 }
 
 // RestoreSnapshot writes a Snapshot image back into every writable RAM
-// region (system RAM, both RIOTs' RAM, and expansion RAM if enabled),
+// region (system RAM, both RIOTs' RAM, and expansion RAM including the
+// $0400-$13FF hole if enabled),
 // ignoring the image's ROM, I/O and unpopulated bytes. It returns the
 // number of bytes written.
 func (s *System) RestoreSnapshot(data []byte) (int, error) {
@@ -39,6 +40,7 @@ func (s *System) RestoreSnapshot(data []byte) (int, error) {
 	restore(appRAMStart, appRAMEnd)
 	restore(kbdRAMStart, kbdRAMEnd)
 	if s.expRAM != nil {
+		restore(holeRAMStart, holeRAMEnd)
 		restore(expRAMStart, expRAMEnd)
 	}
 	return n, nil

@@ -10,8 +10,9 @@ bottom). Implemented in `internal/kim1/memmap.go` and `internal/kim1/system.go`.
 | Range | Contents |
 |---|---|
 | `$0000–$03FF` | System RAM (1KB) |
-| `$0400–$16FF` | Unpopulated on a stock board (reads as 0, writes ignored) |
-| `$1700–$173F` | **App RIOT** (6530-003, user application connector) I/O + timer registers |
+| `$0400–$13FF` | Unpopulated on a stock board (reads as 0, writes ignored); optionally backed by RAM along with `$2000–$FFF9` (`-ram-expansion`) |
+| `$1400–$16FF` | Unpopulated (reads as 0, writes ignored) |
+| `$1700–$173F` | **App RIOT** (6530-003, user application connector) I/O + timer registers; with `-sdcard`, Port A also drives an SD card over SPI (PA4 CS, PA3 SCK, PA2 MOSI, PA1 MISO) |
 | `$1740–$177F` | **Kbd RIOT** (6530-002, keypad/display/TTY/cassette) I/O + timer registers |
 | `$1780–$17BF` | App RIOT internal RAM (64 bytes) |
 | `$17C0–$17FF` | Kbd RIOT internal RAM (64 bytes) — holds the NMIV/RSTV/IRQV "soft vectors" at `$17FA`/`$17FC`/`$17FE` |

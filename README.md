@@ -86,13 +86,17 @@ in a browser, or in VS Code via the **Simple Browser: Show** command —
 there's also a "Run KIM-1" task in `.vscode/tasks.json` that prompts for
 the two ROM paths and starts the server for you.
 
-Add `-ram-expansion` to fill `$2000`-`$FFF9` with RAM, simulating a RAM
-expansion board plugged into the KIM-1's expansion connector — off by
-default, matching stock hardware, where that range is open bus and
-machine-language programs are limited to the on-board 1KB system RAM
-(plus whatever's borrowed from unused RIOT RAM). The one byte below
-`$FFFA` is left out of the window so the CPU's own fixed vectors keep
-aliasing to the Kbd RIOT's ROM.
+Add `-ram-expansion` to fill the `$0400`-`$13FF` memory hole and
+`$2000`-`$FFF9` with RAM, simulating a full RAM upgrade on the KIM-1's
+expansion connector — off by default, matching stock hardware, where
+those ranges are open bus and machine-language programs are limited to
+the on-board 1KB system RAM (plus whatever's borrowed from unused RIOT
+RAM). The bytes from `$FFFA` up are left out so the CPU's own fixed
+vectors keep aliasing to the Kbd RIOT's ROM.
+
+`-baud` sets the TTY terminal's speed (default 300; the monitor
+calibrates to whatever it is, up to 9600). `-sdcard` attaches an SD
+card; see [CP/M-65](#cpm-65-on-an-sd-card) below.
 
 ## Using the keypad: returning to the monitor from a program
 
@@ -169,6 +173,22 @@ on, which is why a real teletype's bootstrap procedure is to send RUBOUT
 first. This emulator does that step automatically — flip `TTY/KB` on,
 then press `RS`, and the boot banner should appear in the terminal
 panel.
+
+## CP/M-65 on an SD card
+
+`-sdcard=image.raw` plugs an emulated SDHC card into the App RIOT's Port
+A, wired the way [CP/M-65](https://github.com/davidgiven/cpm65)'s KIM-1
+"directly attached SD card" port expects (a generic Arduino SD adapter,
+bit-banged as SPI): PA4 = CS, PA3 = SCK, PA2 = MOSI, PA1 = MISO. The card
+sees whole bytes from a bit-level SPI decoder (`internal/kim1/spi.go`)
+and implements the commands simple 6502 drivers use: init (CMD0, CMD8,
+CMD55/ACMD41, CMD58), single-sector reads (CMD17) and writes (CMD24),
+addressed by 512-byte sector (`internal/sdcard`). Writes go straight
+into the image file, so make a copy first if you want to keep the
+original.
+
+For a step-by-step guide to downloading CP/M-65, booting it and using
+it, see [docs/cpm65.md](docs/cpm65.md).
 
 ## ROM images
 

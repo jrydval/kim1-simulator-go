@@ -9,6 +9,7 @@ import (
 
 	"6502/internal/cpu"
 	"6502/internal/riot"
+	"6502/internal/sdcard"
 )
 
 // System is a complete KIM-1: CPU + RAM + the two RIOT chips.
@@ -68,6 +69,15 @@ type System struct {
 	// with nothing plugged into the expansion connector. See
 	// EnableExpansionRAM.
 	expRAM []uint8
+
+	// holeRAM backs the $0400-$13FF memory hole; allocated together with
+	// expRAM by EnableExpansionRAM.
+	holeRAM []uint8
+
+	// sd and spi are the optional SD card bit-banged on App RIOT Port A;
+	// see AttachSDCard.
+	sd  *sdcard.Card
+	spi spiState
 }
 
 // PCHistoryLen is how many recently executed instruction addresses
@@ -91,7 +101,7 @@ func New() *System {
 		TTY:     NewTTY(defaultTTYCyclesPerBit),
 	}
 	s.Kbd.PortA.InputFunc = s.keypadColumnInput
-	s.App.PortA.InputFunc = func() uint8 { return s.AppSwitchA }
+	s.App.PortA.InputFunc = s.appPortAInput
 	s.App.PortB.InputFunc = func() uint8 { return s.AppSwitchB }
 	s.CPU = cpu.New(s)
 	return s
@@ -122,12 +132,14 @@ func (s *System) SetAppSwitch(port byte, bit int, on bool) {
 	}
 }
 
-// EnableExpansionRAM fills the $2000-$FFF9 window with RAM, simulating a
-// KIM-1 expansion RAM board plugged into the expansion connector. Off by
-// default: on stock hardware that range is open bus, and machine-language
-// programs of any size beyond the on-board 1KB (or a few hundred more
-// bytes borrowed from unused RIOT RAM) genuinely need such a board.
+// EnableExpansionRAM fills the $0400-$13FF memory hole and the
+// $2000-$FFF9 window with RAM, simulating a full RAM upgrade on the
+// expansion connector. Off by default: on stock hardware both ranges are
+// open bus, and machine-language programs of any size beyond the
+// on-board 1KB (or a few hundred more bytes borrowed from unused RIOT
+// RAM) genuinely need such a board.
 func (s *System) EnableExpansionRAM() {
+	s.holeRAM = make([]uint8, holeRAMEnd-holeRAMStart+1)
 	s.expRAM = make([]uint8, expRAMEnd-expRAMStart+1)
 }
 
@@ -268,6 +280,8 @@ func (s *System) Read(addr uint16) uint8 {
 		return s.App.ReadROM(addr - appROMStart)
 	case addr >= kbdROMStart && addr <= kbdROMEnd:
 		return s.Kbd.ReadROM(addr - kbdROMStart)
+	case addr >= holeRAMStart && addr <= holeRAMEnd && s.holeRAM != nil:
+		return s.holeRAM[addr-holeRAMStart]
 	case addr >= expRAMStart && addr <= expRAMEnd && s.expRAM != nil:
 		return s.expRAM[addr-expRAMStart]
 	case addr >= hwVectorStart:
@@ -290,7 +304,8 @@ func (s *System) Peek(addr uint16) (v uint8, ok bool) {
 		addr >= appRAMStart && addr <= kbdROMEnd,
 		addr >= hwVectorStart:
 		return s.Read(addr), true
-	case addr >= expRAMStart && addr <= expRAMEnd && s.expRAM != nil:
+	case addr >= holeRAMStart && addr <= holeRAMEnd && s.holeRAM != nil,
+		addr >= expRAMStart && addr <= expRAMEnd && s.expRAM != nil:
 		return s.Read(addr), true
 	default:
 		return 0, false
@@ -305,6 +320,7 @@ func (s *System) Write(addr uint16, v uint8) {
 		s.RAM[addr-ramStart] = v
 	case addr >= appIOStart && addr <= appIOEnd:
 		writeIO(s.App, addr-appIOStart, v)
+		s.clockSPI()
 		if s.DebugIO != nil {
 			s.DebugIO("app", addr-appIOStart, v)
 		}
@@ -318,6 +334,8 @@ func (s *System) Write(addr uint16, v uint8) {
 		s.App.WriteRAM(uint8(addr-appRAMStart), v)
 	case addr >= kbdRAMStart && addr <= kbdRAMEnd:
 		s.Kbd.WriteRAM(uint8(addr-kbdRAMStart), v)
+	case addr >= holeRAMStart && addr <= holeRAMEnd && s.holeRAM != nil:
+		s.holeRAM[addr-holeRAMStart] = v
 	case addr >= expRAMStart && addr <= expRAMEnd && s.expRAM != nil:
 		s.expRAM[addr-expRAMStart] = v
 	}
