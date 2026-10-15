@@ -176,6 +176,8 @@ panel.
 
 ## CP/M-65 on an SD card
 
+<img width="931" height="729" alt="CP/M-65 booted in the KIM-1 simulator, listing its disk with DIR" src="docs/cpm65.png" />
+
 `-sdcard=image.raw` plugs an emulated SDHC card into the App RIOT's Port
 A, wired the way [CP/M-65](https://github.com/davidgiven/cpm65)'s KIM-1
 "directly attached SD card" port expects (a generic Arduino SD adapter,
