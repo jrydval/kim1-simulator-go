@@ -9,6 +9,36 @@ A cycle-accurate MOS 6502 CPU emulator with a full simulation of the
 timer, and their mask ROMs), the 6-digit 7-segment display, and the
 24-key hex keypad.
 
+## Quick start
+
+You need [Go](https://go.dev/dl/) (1.27 or newer), `git` and `curl`.
+
+```sh
+git clone https://github.com/jrydval/kim1-simulator-go.git
+cd kim1-simulator-go
+scripts/get-roms.sh    # downloads the two KIM-1 ROM images into testdata/
+go run ./cmd/kim1
+```
+
+Open <http://localhost:6502>. The display lights up with the monitor
+running; click the keypad's keys to use it. To get the monitor's
+`KIM` prompt in the terminal panel instead, turn on the **TTY/KB**
+switch and press **RS**.
+
+To run CP/M-65 as well:
+
+```sh
+scripts/get-cpm65.sh   # downloads the CP/M-65 loader and disk into testdata/cpm65/
+go run ./cmd/kim1 -ram-expansion -sdcard=testdata/cpm65/cpm65.raw -baud=9600
+```
+
+Then turn on **TTY/KB**, press **RS**, load `testdata/cpm65/bootsd.pap`
+with **Load PAP**, and type `0200 G` in the terminal. See
+[docs/cpm65.md](docs/cpm65.md) for more.
+
+The scripts need a POSIX shell; on Windows, run them from Git Bash or
+WSL.
+
 ## Status
 
 Implemented and tested (`go test ./...`):
@@ -59,8 +89,7 @@ The UI lays out as three columns — board (display + keypad), then
 registers + I/O + terminal, then memory — and stacks them as the window
 narrows.
 
-Not yet implemented: the cassette interface, breakpoints, and state
-snapshot save/restore.
+Not yet implemented: the cassette interface and breakpoints.
 
 See [docs/kim1-memory-map.md](docs/kim1-memory-map.md) for the verified
 address map and remaining open questions (exact segment-bit and
@@ -75,16 +104,18 @@ go test ./...
 
 ## Running
 
-You need your own KIM-1 ROM dumps (see below). Then:
-
 ```sh
-go run ./cmd/kim1 -rom-app=path/to/6530-003.bin -rom-kbd=path/to/6530-002.bin
+go run ./cmd/kim1
 ```
 
 This starts a web server (default `http://localhost:6502`). Open that URL
 in a browser, or in VS Code via the **Simple Browser: Show** command —
 there's also a "Run KIM-1" task in `.vscode/tasks.json` that prompts for
 the two ROM paths and starts the server for you.
+
+The ROM images are read from `testdata/6530-003.bin` and
+`testdata/6530-002.bin` (`scripts/get-roms.sh` puts them there); use
+`-rom-app` and `-rom-kbd` to load your own from elsewhere.
 
 Add `-ram-expansion` to fill the `$0400`-`$13FF` memory hole and
 `$2000`-`$FFF9` with RAM, simulating a full RAM upgrade on the KIM-1's
@@ -195,9 +226,11 @@ it, see [docs/cpm65.md](docs/cpm65.md).
 ## ROM images
 
 This repository does **not** include KIM-1 ROM dumps — they are
-third-party copyrighted content. See
-[testdata/README.md](testdata/README.md) for how to source your own and
-where the Klaus Dormann test binary (which *is* included) comes from.
+third-party copyrighted content. `scripts/get-roms.sh` downloads them
+from the [Funet Commodore archive](https://bio.nic.funet.fi/pub/cbm/src/kim-1/)
+(falling back to zimmers.net) and checks their SHA-256 sums. See
+[testdata/README.md](testdata/README.md) for other sources and for where
+the Klaus Dormann test binary (which *is* included) comes from.
 
 ## License
 

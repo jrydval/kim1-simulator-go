@@ -24,9 +24,14 @@ when the file isn't present.
 ## KIM-1 ROM images (not included)
 
 The two KIM-1 6530 RIOT mask-ROM dumps (1KB each) are third-party
-copyrighted content and are **not** included in this repository. To run
-the full `cmd/kim1` system you must supply your own dumps via the
-`-rom-app` / `-rom-kbd` flags:
+copyrighted content and are **not** included in this repository.
+`scripts/get-roms.sh` downloads them into this directory, where
+`cmd/kim1` looks for them by default, from the [Funet Commodore
+archive](https://bio.nic.funet.fi/pub/cbm/src/kim-1/) (or zimmers.net)
+and checks their SHA-256 sums. Those dumps fill unused ROM bytes with
+`$FF`; some others use `$00`, which makes no difference to the code. To
+use your own dumps instead, put them here or pass the `-rom-app` /
+`-rom-kbd` flags:
 
 - `-rom-app`: the 6530-003 (application connector RIOT), loaded at
   `$1800`
@@ -44,6 +49,7 @@ and runs a few commands. It needs the ROM images above plus
 `testdata/cpm65/bootsd.pap` and `testdata/cpm65/diskimage.raw`, both
 from `kim-1-sdcard.zip` in the [CP/M-65 development
 release](https://github.com/davidgiven/cpm65/releases/tag/dev) (BSD
-licensed, but a 32MB image doesn't belong in git). The test runs against
+licensed, but a 32MB image doesn't belong in git);
+`scripts/get-cpm65.sh` downloads them. The test runs against
 a temporary copy of the image and skips when any of these files is
 missing.

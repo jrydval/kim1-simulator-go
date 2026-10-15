@@ -7,36 +7,31 @@ here.
 
 ## 1. What you need
 
-- **Your KIM-1 ROM images**, the same ones you already use to run the
-  simulator: `6530-003.bin` and `6530-002.bin`. The examples below expect
-  them in `testdata/`; see [testdata/README.md](../testdata/README.md).
-- **The CP/M-65 boot loader and disk image.** Both are in
-  `kim-1-sdcard.zip` in the [CP/M-65 development
-  release](https://github.com/davidgiven/cpm65/releases/tag/dev). It
-  contains:
+- **The KIM-1 ROM images** in `testdata/`, the same ones the simulator
+  always uses. If you don't have them yet, run `scripts/get-roms.sh`.
+- **The CP/M-65 boot loader and disk image** from `kim-1-sdcard.zip` in
+  the [CP/M-65 development
+  release](https://github.com/davidgiven/cpm65/releases/tag/dev):
   - `bootsd.pap`: a small loader you put into KIM-1 memory;
   - `diskimage.raw`: the 32MB SD card, holding CP/M-65 and its programs.
 
-From the repository root, download and unpack them:
+From the repository root, run:
 
 ```sh
-curl -LO https://github.com/davidgiven/cpm65/releases/download/dev/kim-1-sdcard.zip
-unzip kim-1-sdcard.zip -d testdata/cpm65
+scripts/get-cpm65.sh
 ```
 
-`testdata/cpm65/` is in `.gitignore`, so these files never get committed.
+It downloads both files into `testdata/cpm65/` and makes `cpm65.raw`, a
+working copy of the disk. `testdata/cpm65/` is in `.gitignore`, so these
+files never get committed.
 
 ## 2. Start the simulator
 
 The simulator writes everything CP/M-65 saves straight into the disk image,
-so run it on a copy and keep the downloaded file as a clean original:
+so it runs on the working copy and `diskimage.raw` stays a clean original:
 
 ```sh
-cp testdata/cpm65/diskimage.raw testdata/cpm65/cpm65.raw
-
-go run ./cmd/kim1 \
-  -rom-app=testdata/6530-003.bin -rom-kbd=testdata/6530-002.bin \
-  -ram-expansion -sdcard=testdata/cpm65/cpm65.raw -baud=9600
+go run ./cmd/kim1 -ram-expansion -sdcard=testdata/cpm65/cpm65.raw -baud=9600
 ```
 
 What the extra flags do:
@@ -50,7 +45,8 @@ What the extra flags do:
 Open the printed URL (`http://localhost:6502`) in a browser.
 
 To start over with a fresh disk, stop the simulator (Ctrl+C) and copy
-`testdata/cpm65/diskimage.raw` over `testdata/cpm65/cpm65.raw` again.
+`testdata/cpm65/diskimage.raw` over `testdata/cpm65/cpm65.raw` again (or
+rerun `scripts/get-cpm65.sh`).
 
 ## 3. Boot CP/M-65
 

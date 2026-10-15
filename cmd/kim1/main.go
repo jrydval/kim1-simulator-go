@@ -5,8 +5,10 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
+	"io/fs"
 	"log"
 	"net/http"
 	"os"
@@ -19,8 +21,8 @@ import (
 )
 
 func main() {
-	romApp := flag.String("rom-app", "", "path to the 6530-003 (application RIOT) ROM image, 1024 bytes")
-	romKbd := flag.String("rom-kbd", "", "path to the 6530-002 (keypad/display RIOT) ROM image, 1024 bytes")
+	romApp := flag.String("rom-app", "testdata/6530-003.bin", "path to the 6530-003 (application RIOT) ROM image, 1024 bytes")
+	romKbd := flag.String("rom-kbd", "testdata/6530-002.bin", "path to the 6530-002 (keypad/display RIOT) ROM image, 1024 bytes")
 	addr := flag.String("addr", "localhost:6502", "address to serve the web UI on")
 	hz := flag.Int("hz", 1_000_000, "emulated CPU clock speed in Hz (0 = unthrottled)")
 	ramExpansion := flag.Bool("ram-expansion", false, "fill $0400-$13FF and $2000-$FFF9 with RAM, simulating a full RAM upgrade (off by default, matching stock hardware's open bus there)")
@@ -28,18 +30,14 @@ func main() {
 	baud := flag.Int("baud", 300, "TTY baud rate (the monitor auto-calibrates to it on reset; up to 9600 works)")
 	flag.Parse()
 
-	if *romApp == "" || *romKbd == "" {
-		fmt.Fprintln(os.Stderr, "kim1: -rom-app and -rom-kbd are required (see testdata/README.md for how to source KIM-1 ROM dumps)")
-		flag.Usage()
-		os.Exit(2)
-	}
-
 	sys := kim1.New()
-	if err := sys.LoadAppROM(*romApp); err != nil {
-		log.Fatal(err)
-	}
-	if err := sys.LoadKbdROM(*romKbd); err != nil {
-		log.Fatal(err)
+	for _, err := range []error{sys.LoadAppROM(*romApp), sys.LoadKbdROM(*romKbd)} {
+		if errors.Is(err, fs.ErrNotExist) {
+			log.Fatalf("%v\nRun scripts/get-roms.sh to download the ROM images into testdata/, or point -rom-app/-rom-kbd at your own.", err)
+		}
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 	if *ramExpansion {
 		sys.EnableExpansionRAM()
