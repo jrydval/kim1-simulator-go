@@ -67,6 +67,24 @@ let sstBtn = null;
 
 const ttySwitchBtn = document.getElementById("tty-switch");
 const ttyOutEl = document.getElementById("tty-out");
+
+// The terminal is resizable by its corner (CSS resize: vertical); keep
+// the chosen height across reloads. Storage can be unavailable (private
+// windows, blocked site data), in which case the default height stays.
+const TTY_HEIGHT_KEY = "kim1.ttyHeight";
+try {
+  const saved = localStorage.getItem(TTY_HEIGHT_KEY);
+  if (/^\d+(\.\d+)?px$/.test(saved || "")) ttyOutEl.style.height = saved;
+} catch (e) {}
+new ResizeObserver(() => {
+  // Dragging the corner sets the inline height; store that same value,
+  // so reapplying it can't drift by the padding/border.
+  if (!ttyOutEl.style.height) return; // never resized: nothing to remember
+  try {
+    localStorage.setItem(TTY_HEIGHT_KEY, ttyOutEl.style.height);
+  } catch (e) {}
+}).observe(ttyOutEl);
+
 const ttyCapsBtn = document.getElementById("tty-caps");
 
 ttySwitchBtn.addEventListener("click", () => {
